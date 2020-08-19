@@ -104,7 +104,7 @@ namespace FieldBotNG.Tools
         /// <summary>
         /// Runs process and reads standard output and wait for end of process executing.
         /// </summary>
-        /// <param name="processTimeout">Time (in ms) to wait before SIGHTERM proces. If 0, proces won't be killed</param>
+        /// <param name="processTimeout">Time (in ms) to wait before SIGHTERM proces. If 0, process won't be killed - method will wait for exit</param>
         /// <returns>Process's standard output result. Null if process doesn't even start</returns>
         public async Task<string> RunNewProcesAndReadStdOutput(int processTimeout = 0)
         {
@@ -213,7 +213,7 @@ namespace FieldBotNG.Tools
                 ProcessState = BashProcessState.ExitedWithError;
             }
 
-            ExitedProcess?.Invoke(sender, new BashProcessExitEventArgs(ProcessState, ExitProcessCode))
+            ExitedProcess?.Invoke(sender, new BashProcessExitEventArgs(ProcessState, ExitProcessCode));
         }
 
         /// <summary>
