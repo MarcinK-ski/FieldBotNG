@@ -1,0 +1,160 @@
+﻿using FieldBotNG.Settings;
+using System;
+using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+
+namespace FieldBotNG.Tools
+{
+    /// <summary>
+    /// 
+    /// </summary>
+    public class ReverseSSHTunnel
+    {
+        /// <summary>
+        /// Reverse SSH tunnel process
+        /// </summary>
+        private BashProcess _SSHProcess;
+
+        private TunnelSettings _remoteHost;
+        /// <summary>
+        /// Gets or sets Remote Host.
+        /// Pay atention! It can't be changed, while tunnel is established!
+        /// </summary>
+        public TunnelSettings RemoteHost 
+        {
+            get
+            {
+                return _remoteHost;
+            }
+            set
+            {
+                if (!IsTunnelEstablished)
+                {
+                    _remoteHost = value;
+                }
+
+                throw new TunnelEstablishedException("You cannot change remote host, while connection is established.");
+            }
+        }
+
+        private TunnelSettings _localSideHost;
+        /// <summary>
+        /// Gets or sets Local Side Host.
+        /// Pay atention! It can't be changed, while tunnel is established!
+        /// </summary>
+        public TunnelSettings LocalSideHost
+        {
+            get
+            {
+                return _localSideHost;
+            }
+            set
+            {
+                if (!IsTunnelEstablished)
+                {
+                    _localSideHost = value;
+                }
+
+                throw new TunnelEstablishedException("You cannot change local side host, while connection is established.");
+            }
+        }
+
+        /// <summary>
+        /// Is tunnel connection established
+        /// </summary>
+        public bool IsTunnelEstablished { get; private set; }
+
+        /// <summary>
+        /// Creates new ReverseSSHTunnel object
+        /// </summary>
+        /// <param name="remoteHost">Remote host - visible in internet by IP</param>
+        /// <param name="localSideHost">Local side host - visible or invisible in internet by IP</param>
+        public ReverseSSHTunnel(TunnelSettings remoteHost, TunnelSettings localSideHost)
+        {
+            RemoteHost = remoteHost;
+            LocalSideHost = localSideHost;
+        }
+
+        /// <summary>
+        /// Runs Reverse SSH Tunnel, using command: "ssh -NvR bindAddress:remoteAccessPort:localSideHost:localSidePort user@remoteHost
+        /// </summary>
+        /// <param name="bindAddress">
+        /// By default, the listening socket on the server will be bound to the loopback interface only. 
+        /// This may be overridden by specifying a bind_address. 
+        /// An empty bind_address, or the address '*', indicates that the remote socket should listen on all interfaces. 
+        /// Specifying a remote bind_address will only succeed if the server's GatewayPorts option is enabled.
+        /// </param>
+        /// <returns></returns>
+        public bool Start(string bindAddress = "0.0.0.0")
+        {
+            string bashCommand = $"ssh -NvR {bindAddress}:{RemoteHost.Port}:{LocalSideHost.IP}:{LocalSideHost.Port} {RemoteHost.User}@{RemoteHost.IP}";
+            _SSHProcess = new BashProcess(bashCommand);
+
+            _SSHProcess.StandardOutputStringReceived += _SSHProcess_StandardOutputStringReceived;
+
+            IsTunnelEstablished = _SSHProcess.RunNewProcess(true); 
+            return IsTunnelEstablished;
+        }
+
+        /// <summary>
+        /// Handle StdOutput
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="stdEventArgs"></param>
+        private void _SSHProcess_StandardOutputStringReceived(object sender, BashProcessStdEventArgs stdEventArgs)
+        {
+            Console.WriteLine(stdEventArgs.Output);
+        }
+
+        /// <summary>
+        /// Stop tunnel
+        /// </summary>
+        public void Stop()
+        {
+            _SSHProcess.KillProcess();
+            IsTunnelEstablished = !_SSHProcess.IsProcessRunning;
+        }
+
+        /// <summary>
+        /// Checking connection type (local/remote) / state (connected/disconnected)
+        /// (To execute this method, device must be ssh authorised_host (ssh can't ask for password))
+        /// </summary>
+        /// <returns>Tunnel connection state or throws TunnelUnknownConnectionStateException when netstat has no result.</returns>
+        public async Task<TunnelConnectionState> CheckConnectionType()
+        {
+            string netstatLocalAddress = null;
+
+            BashProcess netstatProcess = new BashProcess($"ssh {RemoteHost.User}@{RemoteHost.IP} netstat -tapn");
+
+            string netstatResult = await netstatProcess.RunNewProcesAndReadStdOutput();
+
+            if (!string.IsNullOrWhiteSpace(netstatResult))
+            {
+                Regex regex = new Regex($@"[0-255].[0-255].[0-255].[0-255](?=:{RemoteHost.Port})");
+                Match match = regex.Match(netstatResult);
+                if (match.Success)
+                {
+                    netstatLocalAddress = match.Groups[0].Value;
+                }
+
+                switch (netstatLocalAddress)
+                {
+                    case "0.0.0.0":
+                        IsTunnelEstablished = true;
+                        return TunnelConnectionState.RemoteConnection;
+                    case "127.0.0.1":
+                        IsTunnelEstablished = true;
+                        return TunnelConnectionState.LocalConnection;
+                    case null:
+                        IsTunnelEstablished = false;
+                        return TunnelConnectionState.NoConnection;
+                    default:
+                        throw new TunnelUnknownConnectionStateException($"Unknown Tunnel Connection State: {netstatLocalAddress}");
+                }
+            }
+
+            throw new TunnelUnknownConnectionStateException("Unknown Tunnel Connection State: no netstatResult");
+        }
+    }
+}
