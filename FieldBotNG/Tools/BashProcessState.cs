@@ -6,6 +6,7 @@
         OK,
         NotStarted,
         Exited,
+        KilledManually,
         ExitedWithError,
         EmptyBashCommand,
         OldProcessIsRunning,

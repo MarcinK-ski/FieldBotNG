@@ -77,6 +77,37 @@ namespace FieldBotNG.Tools
         }
 
         /// <summary>
+        /// Runs process and reads standard output and wait for end of process executing.
+        /// </summary>
+        /// <param name="processTimeout">Time (in ms) to wait before SIGHTERM proces. If 0, process won't be killed - method will wait for exit</param>
+        /// <returns>Process's standard output result. Null if process doesn't even start</returns>
+        public async Task<string> RunNewProcesAndReadStdOutput(int processTimeout = 0)
+        {
+            string stdOutputResult = null;
+
+            if (RunNewProcess(false))
+            {
+                stdOutputResult = await CurrentBashProcess.StandardOutput.ReadToEndAsync();
+
+                if (processTimeout > 0)
+                {
+                    bool isExited = CurrentBashProcess.WaitForExit(processTimeout);
+
+                    if (!isExited)
+                    {
+                        CurrentBashProcess.Kill();
+                    }
+                }
+                else
+                {
+                    CurrentBashProcess.WaitForExit();
+                }
+            }
+
+            return stdOutputResult;
+        }
+
+        /// <summary>
         /// Runs new process
         /// </summary>
         /// <param name="stdOutput">If true, StandardOutput and StandardError is accessable from </param>
@@ -102,33 +133,6 @@ namespace FieldBotNG.Tools
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Runs process and reads standard output and wait for end of process executing.
-        /// </summary>
-        /// <param name="processTimeout">Time (in ms) to wait before SIGHTERM proces. If 0, process won't be killed - method will wait for exit</param>
-        /// <returns>Process's standard output result. Null if process doesn't even start</returns>
-        public async Task<string> RunNewProcesAndReadStdOutput(int processTimeout = 0)
-        {
-            string stdOutputResult = null;
-
-            if (RunNewProcess(false))
-            {
-                stdOutputResult = await CurrentBashProcess.StandardOutput.ReadToEndAsync();
-
-                if (processTimeout > 0)
-                {
-                    bool isExited = CurrentBashProcess.WaitForExit(processTimeout);
-                    CurrentBashProcess.Kill();
-                }
-                else
-                {
-                    CurrentBashProcess.WaitForExit();
-                }
-            }
-
-            return stdOutputResult;
         }
 
         /// <summary>
@@ -197,6 +201,21 @@ namespace FieldBotNG.Tools
         }
 
         /// <summary>
+        /// Kill current process and unsubscribe events
+        /// </summary>
+        public void KillProcess()
+        {
+            CurrentBashProcess.Exited -= CurrentBashProcess_Exited;
+
+            CurrentBashProcess.Kill();
+            CurrentBashProcess.WaitForExit();
+            CurrentBashProcess.Dispose();
+
+            ProcessState = BashProcessState.KilledManually;
+            ExitedProcess?.Invoke(this, new BashProcessExitEventArgs(ProcessState, null));
+        }
+
+        /// <summary>
         /// Changes object properties, to inform that current process has been exited
         /// </summary>
         /// <param name="sender"></param>
@@ -216,7 +235,7 @@ namespace FieldBotNG.Tools
                 ProcessState = BashProcessState.ExitedWithError;
             }
 
-            ExitedProcess?.Invoke(sender, new BashProcessExitEventArgs(ProcessState, ExitProcessCode));
+            ExitedProcess?.Invoke(this, new BashProcessExitEventArgs(ProcessState, ExitProcessCode));
         }
 
         /// <summary>
@@ -226,7 +245,7 @@ namespace FieldBotNG.Tools
         /// <param name="e"></param>
         protected void CurrentBashProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
-            StandardOutputStringReceived?.Invoke(sender, new BashProcessStdEventArgs(e.Data, false));
+            StandardOutputStringReceived?.Invoke(this, new BashProcessStdEventArgs(e.Data, false));
         }
 
         /// <summary>
@@ -236,7 +255,7 @@ namespace FieldBotNG.Tools
         /// <param name="e"></param>
         private void CurrentBashProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
-            StandardErrorStringReceived?.Invoke(sender, new BashProcessStdEventArgs(e.Data, true));
+            StandardErrorStringReceived?.Invoke(this, new BashProcessStdEventArgs(e.Data, true));
         }
     }
 }
