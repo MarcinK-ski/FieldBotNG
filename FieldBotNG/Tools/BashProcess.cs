@@ -211,8 +211,32 @@ namespace FieldBotNG.Tools
             CurrentBashProcess.WaitForExit();
             CurrentBashProcess.Dispose();
 
-            ProcessState = BashProcessState.KilledManually;
-            ExitedProcess?.Invoke(this, new BashProcessExitEventArgs(ProcessState, null));
+            ExitedOrKilledProcessAction(true);
+        }
+
+        protected void ExitedOrKilledProcessAction(bool isKilled)
+        {
+            IsProcessRunning = false;
+            ExitProcessCode = CurrentBashProcess.ExitCode;
+
+            if (isKilled)
+            {
+                ProcessState = BashProcessState.KilledManually;
+                ExitedProcess?.Invoke(this, new BashProcessExitEventArgs(ProcessState, null));
+            }
+            else
+            {
+                if (ExitProcessCode == 0)
+                {
+                    ProcessState = BashProcessState.Exited;
+                }
+                else
+                {
+                    ProcessState = BashProcessState.ExitedWithError;
+                }
+
+                ExitedProcess?.Invoke(this, new BashProcessExitEventArgs(ProcessState, ExitProcessCode));
+            }
         }
 
         /// <summary>
@@ -222,20 +246,7 @@ namespace FieldBotNG.Tools
         /// <param name="e"></param>
         protected void CurrentBashProcess_Exited(object sender, EventArgs e)
         {
-            IsProcessRunning = false;
-
-            ExitProcessCode = CurrentBashProcess.ExitCode;
-
-            if (ExitProcessCode == 0)
-            {
-                ProcessState = BashProcessState.Exited;
-            }
-            else
-            {
-                ProcessState = BashProcessState.ExitedWithError;
-            }
-
-            ExitedProcess?.Invoke(this, new BashProcessExitEventArgs(ProcessState, ExitProcessCode));
+            ExitedOrKilledProcessAction(false);
         }
 
         /// <summary>
