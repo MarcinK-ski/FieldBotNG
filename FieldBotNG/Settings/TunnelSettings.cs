@@ -4,7 +4,7 @@ namespace FieldBotNG.Settings
 {
     public class TunnelSettings
     {
-        public string ServerURL { get; set; }
+        public string IP { get; set; }
 
         public int Port { get; set; }
 
