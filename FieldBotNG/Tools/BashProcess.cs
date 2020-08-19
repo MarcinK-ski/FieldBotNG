@@ -4,7 +4,10 @@ using System.Threading.Tasks;
 
 namespace FieldBotNG.Tools
 {
-    public class BashProcess
+    /// <summary>
+    /// Class to create and manage Bash process
+    /// </summary>
+    public partial class BashProcess
     {
         /// <summary>
         /// Represents method that will handle StandardOutputStringReceived and StandardErrorStringReceived methods.
