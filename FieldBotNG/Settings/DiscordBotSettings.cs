@@ -2,7 +2,7 @@
 
 namespace FieldBotNG.Settings
 {
-    class DiscordBotSettings
+    public class DiscordBotSettings
     {
         public string Name { get; set; }
 

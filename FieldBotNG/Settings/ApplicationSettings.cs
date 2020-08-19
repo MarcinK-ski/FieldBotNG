@@ -5,10 +5,12 @@ using System.Text;
 
 namespace FieldBotNG.Settings
 {
-    class ApplicationSettings
+    public class ApplicationSettings
     {
         public DiscordBotSettings DiscordBot { get; set; }
 
-        public TunnelSettings Tunnel { get; set; }
+        public TunnelSettings RemoteHost { get; set; }
+
+        public TunnelSettings LocalHost { get; set; }
     }
 }

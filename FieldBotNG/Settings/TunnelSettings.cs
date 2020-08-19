@@ -2,11 +2,16 @@
 
 namespace FieldBotNG.Settings
 {
-    class TunnelSettings
+    public class TunnelSettings
     {
         public string ServerURL { get; set; }
 
         public int Port { get; set; }
+
+        /// <summary>
+        /// If it's local device, User and Password are useless
+        /// </summary>
+        public bool IsLocalDevice { get; set; }
 
         public string User { get; set; }
 

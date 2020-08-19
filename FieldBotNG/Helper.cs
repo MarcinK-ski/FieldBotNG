@@ -6,7 +6,7 @@ using System.Text;
 
 namespace FieldBotNG
 {
-    static class Helper
+    public static class Helper
     {
         public const string APP_SETTINGS_JSON_LOCATION = "appsettings.json";
         public const string ROOT_OBJECT_NAME_IN_JSON = "appsettings";

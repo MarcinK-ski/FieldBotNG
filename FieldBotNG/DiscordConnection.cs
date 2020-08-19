@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FieldBotNG
 {
-    class DiscordConnection
+    public class DiscordConnection
     {
         private static DiscordSocketClient _client;
 
