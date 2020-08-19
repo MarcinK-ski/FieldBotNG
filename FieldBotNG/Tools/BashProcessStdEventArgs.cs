@@ -2,7 +2,7 @@
 
 namespace FieldBotNG.Tools
 {
-    public class StdEventArgs : EventArgs
+    public class BashProcessStdEventArgs : EventArgs
     {
         /// <summary>
         /// Gets data from StdOutput
@@ -19,7 +19,7 @@ namespace FieldBotNG.Tools
         /// </summary>
         /// <param name="stdString">String on Standard output or error</param>
         /// <param name="isStdError">Define is string StandardOutput or StandardError</param>
-        public StdEventArgs(string stdString, bool isStdError)
+        public BashProcessStdEventArgs(string stdString, bool isStdError)
         {
             if (isStdError)
             {

@@ -1,6 +1,6 @@
 ﻿namespace FieldBotNG
 {
-    enum BashProcessState
+    public enum BashProcessState
     {
         Prepared,
         OK,

@@ -4,14 +4,16 @@ using System.Threading.Tasks;
 
 namespace FieldBotNG.Tools
 {
-    class BashProcess
+    public class BashProcess
     {
         /// <summary>
         /// Represents method that will handle StandardOutputStringReceived and StandardErrorStringReceived methods.
         /// </summary>
         /// <param name="sender">Source of stream event</param>
         /// <param name="stdEventArgs">Data from StdOutput/StdError stream</param>
-        public delegate void StdEventHandler(object sender, StdEventArgs stdEventArgs);
+        public delegate void StdEventHandler(object sender, BashProcessStdEventArgs stdEventArgs);
+
+        public delegate void ExitProcessEventHandler(object sender, BashProcessExitEventArgs exitProcessEventArgs);
 
         /// <summary>
         /// Occurs when process redirect line to Process's StdOutput stream
@@ -23,6 +25,7 @@ namespace FieldBotNG.Tools
         /// </summary>
         public event StdEventHandler StandardErrorStringReceived;
 
+        public event ExitProcessEventHandler ExitedProcess;
 
         private string _bashCommand;
         /// <summary>
@@ -209,6 +212,8 @@ namespace FieldBotNG.Tools
             {
                 ProcessState = BashProcessState.ExitedWithError;
             }
+
+            ExitedProcess?.Invoke(sender, new BashProcessExitEventArgs(ProcessState, ExitProcessCode))
         }
 
         /// <summary>
@@ -218,7 +223,7 @@ namespace FieldBotNG.Tools
         /// <param name="e"></param>
         protected void CurrentBashProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
-            StandardOutputStringReceived?.Invoke(sender, new StdEventArgs(e.Data, false));
+            StandardOutputStringReceived?.Invoke(sender, new BashProcessStdEventArgs(e.Data, false));
         }
 
         /// <summary>
@@ -228,7 +233,7 @@ namespace FieldBotNG.Tools
         /// <param name="e"></param>
         private void CurrentBashProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
-            StandardErrorStringReceived?.Invoke(sender, new StdEventArgs(e.Data, true));
+            StandardErrorStringReceived?.Invoke(sender, new BashProcessStdEventArgs(e.Data, true));
         }
     }
 }
