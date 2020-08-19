@@ -4,21 +4,37 @@
     public partial class BashProcess
     {
         /// <summary>
-        /// Write termination line
+        /// Checks is RedirectStandardInput set as true. If not throws exception.
+        /// </summary>
+        private void CheckIsStandardInputRedirect()
+        {
+            if (!CurrentBashProcess.StartInfo.RedirectStandardInput)
+            {
+                throw new BashProcessNotRedirecterStandardInputException();
+            }
+        }
+        /// <summary>
+        /// Write termination line. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         public void WriteToStandardInput()
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
             CurrentBashProcess.StandardInput.WriteLine();
         }
 
         /// <summary>
-        /// Write string to StandardInput
+        /// Write string to StandardInput. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         /// <param name="inputString">Input string data</param>
         /// <param name="isWritingLine">If true, using WriteLine(), if false - Write() </param>
         public void WriteToStandardInput(string inputString, bool isWritingLine = false)
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
 
             if (isWritingLine)
@@ -32,12 +48,15 @@
         }
 
         /// <summary>
-        /// Write char to StandardInput
+        /// Write char to StandardInput. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         /// <param name="inputChar">Input char</param>
         /// <param name="isWritingLine">If true, using WriteLine(), if false - Write() </param>
         public void WriteToStandardInput(char inputChar, bool isWritingLine = false)
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
 
             if (isWritingLine)
@@ -51,12 +70,15 @@
         }
 
         /// <summary>
-        /// Write bool to StandardInput
+        /// Write bool to StandardInput. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         /// <param name="inputBool">Input bool value</param>
         /// <param name="isWritingLine">If true, using WriteLine(), if false - Write() </param>
         public void WriteToStandardInput(bool inputBool, bool isWritingLine = false)
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
 
             if (isWritingLine)
@@ -70,12 +92,15 @@
         }
 
         /// <summary>
-        /// Write int to StandardInput
+        /// Write int to StandardInput. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         /// <param name="inputInt">Input int value</param>
         /// <param name="isWritingLine">If true, using WriteLine(), if false - Write() </param>
         public void WriteToStandardInput(int inputInt, bool isWritingLine = false)
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
 
             if (isWritingLine)
@@ -89,12 +114,15 @@
         }
 
         /// <summary>
-        /// Write uint to StandardInput
+        /// Write uint to StandardInput. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         /// <param name="inputUInt">Input uint value</param>
         /// <param name="isWritingLine">If true, using WriteLine(), if false - Write() </param>
         public void WriteToStandardInput(uint inputUInt, bool isWritingLine = false)
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
 
             if (isWritingLine)
@@ -108,12 +136,15 @@
         }
 
         /// <summary>
-        /// Write decimal to StandardInput
+        /// Write decimal to StandardInput. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         /// <param name="inputDecimal">Input decimal value</param>
         /// <param name="isWritingLine">If true, using WriteLine(), if false - Write() </param>
         public void WriteToStandardInput(decimal inputDecimal, bool isWritingLine = false)
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
 
             if (isWritingLine)
@@ -127,12 +158,15 @@
         }
 
         /// <summary>
-        /// Write double to StandardInput
+        /// Write double to StandardInput. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         /// <param name="inputDouble">Input double value</param>
         /// <param name="isWritingLine">If true, using WriteLine(), if false - Write() </param>
         public void WriteToStandardInput(double inputDouble, bool isWritingLine = false)
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
 
             if (isWritingLine)
@@ -146,12 +180,15 @@
         }
 
         /// <summary>
-        /// Write long to StandardInput
+        /// Write long to StandardInput. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         /// <param name="inputLong">Input long value</param>
         /// <param name="isWritingLine">If true, using WriteLine(), if false - Write() </param>
         public void WriteToStandardInput(long inputLong, bool isWritingLine = false)
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
 
             if (isWritingLine)
@@ -165,12 +202,15 @@
         }
 
         /// <summary>
-        /// Write ulong to StandardInput
+        /// Write ulong to StandardInput. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         /// <param name="inputULong">Input ulong value</param>
         /// <param name="isWritingLine">If true, using WriteLine(), if false - Write() </param>
         public void WriteToStandardInput(ulong inputULong, bool isWritingLine = false)
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
 
             if (isWritingLine)
@@ -184,12 +224,15 @@
         }
 
         /// <summary>
-        /// Write float to StandardInput
+        /// Write float to StandardInput. 
+        /// If RedirectStandardInput is false, throws BashProcessNotRedirecterStandardInputException.
         /// </summary>
         /// <param name="inputFloat">Input float value</param>
         /// <param name="isWritingLine">If true, using WriteLine(), if false - Write() </param>
         public void WriteToStandardInput(float inputFloat, bool isWritingLine = false)
         {
+            CheckIsStandardInputRedirect();
+
             CurrentBashProcess.StandardInput.Flush();
 
             if (isWritingLine)

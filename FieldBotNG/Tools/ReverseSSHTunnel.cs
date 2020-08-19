@@ -33,8 +33,10 @@ namespace FieldBotNG.Tools
                 {
                     _remoteHost = value;
                 }
-
-                throw new TunnelEstablishedException("You cannot change remote host, while connection is established.");
+                else
+                {
+                    throw new TunnelEstablishedException("You cannot change remote host, while connection is established.");
+                }
             }
         }
 
@@ -55,8 +57,10 @@ namespace FieldBotNG.Tools
                 {
                     _localSideHost = value;
                 }
-
-                throw new TunnelEstablishedException("You cannot change local side host, while connection is established.");
+                else
+                {
+                    throw new TunnelEstablishedException("You cannot change local side host, while connection is established.");
+                }
             }
         }
 
@@ -92,19 +96,48 @@ namespace FieldBotNG.Tools
             _SSHProcess = new BashProcess(bashCommand);
 
             _SSHProcess.StandardOutputStringReceived += _SSHProcess_StandardOutputStringReceived;
+            _SSHProcess.StandardErrorStringReceived += _SSHProcess_StandardOutputStringReceived;
 
-            IsTunnelEstablished = _SSHProcess.RunNewProcess(true); 
+            IsTunnelEstablished = _SSHProcess.RunNewProcess(true, true, true);
             return IsTunnelEstablished;
         }
 
         /// <summary>
-        /// Handle StdOutput
+        /// Handle StdOutput/StdError
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="stdEventArgs"></param>
         private void _SSHProcess_StandardOutputStringReceived(object sender, BashProcessStdEventArgs stdEventArgs)
         {
-            Console.WriteLine(stdEventArgs.Output);
+            string output = stdEventArgs.Output;
+            Console.WriteLine($">{output}");
+
+            /*
+             * Enter password when:
+             *  - StdInput is true
+             *  - Output is not null/empty
+             *  - Password prompt
+             */
+            if (_SSHProcess.CurrentBashProcess.StartInfo.RedirectStandardInput && !string.IsNullOrWhiteSpace(output))
+            {
+                string user = Regex.Escape(RemoteHost.User);
+                string ip = Regex.Escape(RemoteHost.IP);
+
+                CheckIsPasswordPromptAndInputIt(output, $@"{user}\@{ip}\'s password:");
+            }
+        }
+
+        /// <summary>
+        /// Check is StdOutput or StdError contains password prompt, if yes, put it to StdInput
+        /// </summary>
+        protected void CheckIsPasswordPromptAndInputIt(string outputOrErrorData, string passwordRegex)
+        {
+            Regex regex = new Regex(passwordRegex);
+            Match match = regex.Match(outputOrErrorData);
+            if (match.Success)
+            {
+                _SSHProcess.WriteToStandardInput(RemoteHost.Password);
+            }
         }
 
         /// <summary>

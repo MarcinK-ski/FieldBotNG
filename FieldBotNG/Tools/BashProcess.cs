@@ -42,7 +42,7 @@ namespace FieldBotNG.Tools
             }
             set
             {
-                _bashCommand.Replace("\"", "\\\"");
+                _bashCommand = value.Replace("\"", "\\\"");
             }
         }
 
@@ -112,22 +112,30 @@ namespace FieldBotNG.Tools
         /// </summary>
         /// <param name="stdOutput">If true, StandardOutput and StandardError is accessable from </param>
         /// <returns>True if process was prepared and started, false if not.</returns>
-        public bool RunNewProcess(bool stdOutput = false)
+        public bool RunNewProcess(bool stdOutput = false, bool stdError = false, bool stdInput = false)
         {
-            bool isProcessPrepared = PrepareBashProcess();
+            bool isProcessPrepared = PrepareBashProcess(stdOutput, stdError, stdInput);
+
             if (isProcessPrepared)
             {
                 CurrentBashProcess.Exited += CurrentBashProcess_Exited;
-                if (stdOutput)
-                {
-                    CurrentBashProcess.OutputDataReceived += CurrentBashProcess_OutputDataReceived;
-                    CurrentBashProcess.ErrorDataReceived += CurrentBashProcess_ErrorDataReceived;
-                }
 
                 SetStateAfterProcessStarted(CurrentBashProcess.Start());
 
                 if (IsProcessRunning)
                 {
+                    if (stdOutput)
+                    {
+                        CurrentBashProcess.OutputDataReceived += CurrentBashProcess_OutputDataReceived;
+                        CurrentBashProcess.BeginOutputReadLine();
+                    }
+
+                    if (stdError)
+                    {
+                        CurrentBashProcess.ErrorDataReceived += CurrentBashProcess_ErrorDataReceived;
+                        CurrentBashProcess.BeginErrorReadLine();
+                    }
+
                     return true;
                 }
             }
@@ -139,7 +147,7 @@ namespace FieldBotNG.Tools
         /// Escapes quotation marks and sets new process as current (/bin/bash)
         /// </summary>
         /// <returns>Is process correctly prepared</returns>
-        protected bool PrepareBashProcess()
+        protected bool PrepareBashProcess(bool stdOutput, bool stdError, bool stdInput)
         {
             if (string.IsNullOrWhiteSpace(BashCommand))
             {
@@ -161,7 +169,9 @@ namespace FieldBotNG.Tools
                         {
                             FileName = "/bin/bash",
                             Arguments = $"-c \"{BashCommand}\"",
-                            RedirectStandardOutput = true,
+                            RedirectStandardOutput = stdOutput,
+                            RedirectStandardError = stdError,
+                            RedirectStandardInput = stdInput,
                             UseShellExecute = false,
                             CreateNoWindow = true
                         }
@@ -256,7 +266,7 @@ namespace FieldBotNG.Tools
         /// <param name="e"></param>
         protected void CurrentBashProcess_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
-            StandardOutputStringReceived?.Invoke(this, new BashProcessStdEventArgs(e.Data, false));
+            StandardOutputStringReceived?.Invoke(this, new BashProcessStdEventArgs(e.Data));
         }
 
         /// <summary>
@@ -266,7 +276,7 @@ namespace FieldBotNG.Tools
         /// <param name="e"></param>
         private void CurrentBashProcess_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
-            StandardErrorStringReceived?.Invoke(this, new BashProcessStdEventArgs(e.Data, true));
+            StandardErrorStringReceived?.Invoke(this, new BashProcessStdEventArgs(e.Data));
         }
     }
 }
