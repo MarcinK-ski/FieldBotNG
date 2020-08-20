@@ -1,8 +1,8 @@
 ﻿using Discord.WebSocket;
-using FieldBotNG.Tools;
 using System;
 using System.Text;
 using System.Threading.Tasks;
+using TunnelingTools;
 
 namespace FieldBotNG
 {
@@ -14,6 +14,8 @@ namespace FieldBotNG
 
         public async Task MainAsync()
         {
+            BashTools.BashProcess.IsWSL = true;
+
             _tunnel = new ReverseSSHTunnel(SettingsManager.AppConfig.RemoteHost, SettingsManager.AppConfig.LocalHost);
 
             _client = new DiscordSocketClient();

@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
-namespace FieldBotNG.Tools
+namespace BashTools
 {
     /// <summary>
     /// Class to create and manage Bash process
@@ -64,13 +64,7 @@ namespace FieldBotNG.Tools
         /// <summary>
         /// True if process is running via WSL, false if on Linux machine
         /// </summary>
-        public bool? IsWSL 
-        {
-            get
-            {
-                return SettingsManager.AppConfig?.WSL;
-            }
-        }
+        public static bool? IsWSL { get; set; }
 
         /// <summary>
         /// Has process been started or is still running.

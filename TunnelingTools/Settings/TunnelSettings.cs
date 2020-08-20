@@ -1,6 +1,4 @@
-﻿using Newtonsoft.Json;
-
-namespace FieldBotNG.Settings
+﻿namespace TunnelingTools.Settings
 {
     public class TunnelSettings
     {

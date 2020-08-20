@@ -1,4 +1,4 @@
-﻿namespace FieldBotNG
+﻿namespace BashTools
 {
     public enum BashProcessState
     {

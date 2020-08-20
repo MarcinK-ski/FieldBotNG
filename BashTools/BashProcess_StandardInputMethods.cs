@@ -1,4 +1,4 @@
-﻿namespace FieldBotNG.Tools
+﻿namespace BashTools
 {
     // Part with Standard Input methods
     public partial class BashProcess

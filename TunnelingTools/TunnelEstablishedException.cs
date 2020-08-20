@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace FieldBotNG.Tools
+namespace TunnelingTools
 {
     class TunnelEstablishedException : Exception
     {

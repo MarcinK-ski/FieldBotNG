@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace FieldBotNG.Tools
+namespace TunnelingTools
 {
     internal class TunnelUnknownConnectionStateException : Exception
     {

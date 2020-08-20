@@ -1,4 +1,4 @@
-﻿namespace FieldBotNG.Tools
+﻿namespace TunnelingTools
 {
     /// <summary>
     /// Possible states of tunnel connection

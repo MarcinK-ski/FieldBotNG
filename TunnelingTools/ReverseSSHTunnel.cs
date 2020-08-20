@@ -1,10 +1,11 @@
-﻿using FieldBotNG.Settings;
+﻿using BashTools;
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using TunnelingTools.Settings;
 
-namespace FieldBotNG.Tools
+namespace TunnelingTools
 {
     /// <summary>
     /// Class to create Reverse SSH Tunneling

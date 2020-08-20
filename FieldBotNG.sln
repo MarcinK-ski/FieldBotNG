@@ -7,7 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FieldBotNG", "FieldBotNG\Fi
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{F121F571-14C9-4B6C-9819-F3016770511B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReverseSSHTunnelExample", "Examples\ReverseSSHTunnelExample\ReverseSSHTunnelExample.csproj", "{5ABDEF69-B19D-41EC-8CA9-3160E8EA9332}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReverseSSHTunnelExample", "Examples\ReverseSSHTunnelExample\ReverseSSHTunnelExample.csproj", "{5ABDEF69-B19D-41EC-8CA9-3160E8EA9332}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BashTools", "BashTools\BashTools.csproj", "{C3383B5F-3AC9-4C3C-951D-E42D714C5261}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TunnelingTools", "TunnelingTools\TunnelingTools.csproj", "{45891257-591B-435F-9521-4DEEA3A0DEEC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,6 +27,14 @@ Global
 		{5ABDEF69-B19D-41EC-8CA9-3160E8EA9332}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5ABDEF69-B19D-41EC-8CA9-3160E8EA9332}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5ABDEF69-B19D-41EC-8CA9-3160E8EA9332}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3383B5F-3AC9-4C3C-951D-E42D714C5261}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3383B5F-3AC9-4C3C-951D-E42D714C5261}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3383B5F-3AC9-4C3C-951D-E42D714C5261}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3383B5F-3AC9-4C3C-951D-E42D714C5261}.Release|Any CPU.Build.0 = Release|Any CPU
+		{45891257-591B-435F-9521-4DEEA3A0DEEC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{45891257-591B-435F-9521-4DEEA3A0DEEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{45891257-591B-435F-9521-4DEEA3A0DEEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{45891257-591B-435F-9521-4DEEA3A0DEEC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

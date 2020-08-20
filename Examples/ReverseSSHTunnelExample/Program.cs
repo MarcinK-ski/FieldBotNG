@@ -1,7 +1,6 @@
-﻿using FieldBotNG;
-using FieldBotNG.Tools;
-using System;
+﻿using System;
 using System.Threading.Tasks;
+using TunnelingTools;
 
 namespace ReverseSSHTunnelExample
 {
@@ -9,6 +8,8 @@ namespace ReverseSSHTunnelExample
     {
         static async Task Main()
         {
+            BashTools.BashProcess.IsWSL = true;
+
             ReverseSSHTunnel reverseSSHTunnel = new ReverseSSHTunnel(SettingsManager.AppConfig.RemoteHost, SettingsManager.AppConfig.LocalHost);
             reverseSSHTunnel.Start();
 

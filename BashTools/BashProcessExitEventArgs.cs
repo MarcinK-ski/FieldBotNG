@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace FieldBotNG.Tools
+namespace BashTools
 {
     public class BashProcessExitEventArgs : EventArgs
     {
