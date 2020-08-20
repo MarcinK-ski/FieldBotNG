@@ -1,6 +1,5 @@
 ﻿using FieldBotNG.Settings;
 using System;
-using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -93,7 +92,7 @@ namespace FieldBotNG.Tools
         public bool Start(string bindAddress = "0.0.0.0")
         {
             string bashCommand = $"ssh -NvR {bindAddress}:{RemoteHost.Port}:{LocalSideHost.IP}:{LocalSideHost.Port} {RemoteHost.User}@{RemoteHost.IP}";
-            _SSHProcess = new BashProcess(bashCommand);
+            _SSHProcess = new BashProcess(bashCommand, Helper.AppConfig.WSL);
 
             _SSHProcess.StandardOutputStringReceived += _SSHProcess_StandardOutputStringReceived;
             _SSHProcess.StandardErrorStringReceived += _SSHProcess_StandardOutputStringReceived;

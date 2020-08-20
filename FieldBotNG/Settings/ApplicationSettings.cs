@@ -12,5 +12,7 @@ namespace FieldBotNG.Settings
         public TunnelSettings RemoteHost { get; set; }
 
         public TunnelSettings LocalHost { get; set; }
+
+        public bool WSL { get; set; }
     }
 }
