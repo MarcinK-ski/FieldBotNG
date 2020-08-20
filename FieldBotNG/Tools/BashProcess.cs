@@ -52,6 +52,11 @@ namespace FieldBotNG.Tools
         public Process CurrentBashProcess { get; protected set; }
 
         /// <summary>
+        /// True if process is running via WSL, false if on Linux machine
+        /// </summary>
+        public bool IsWSL { get; set; }
+
+        /// <summary>
         /// Has process been started or is still running.
         /// </summary>
         public bool IsProcessRunning { get; protected set; }
@@ -71,9 +76,11 @@ namespace FieldBotNG.Tools
         /// Creates new BashProcess object
         /// </summary>
         /// <param name="bashCommand">Bash command to execute (Automatically using Replace("\"", "\\\"") on it).</param>
-        public BashProcess(string bashCommand)
+        /// <param name="isWSLMode">True if process is running via WSL (require installed WSL on machine!), false if on Linux machine</param>
+        public BashProcess(string bashCommand, bool isWSLMode = false)
         {
             BashCommand = bashCommand;
+            IsWSL = isWSLMode;
         }
 
         /// <summary>
@@ -126,13 +133,11 @@ namespace FieldBotNG.Tools
                 {
                     if (stdOutput)
                     {
-                        CurrentBashProcess.OutputDataReceived += CurrentBashProcess_OutputDataReceived;
                         CurrentBashProcess.BeginOutputReadLine();
                     }
 
                     if (stdError)
                     {
-                        CurrentBashProcess.ErrorDataReceived += CurrentBashProcess_ErrorDataReceived;
                         CurrentBashProcess.BeginErrorReadLine();
                     }
 
@@ -146,6 +151,9 @@ namespace FieldBotNG.Tools
         /// <summary>
         /// Escapes quotation marks and sets new process as current (/bin/bash)
         /// </summary>
+        /// <param name="stdOutput"></param>
+        /// <param name="stdError"></param>
+        /// <param name="stdInput"></param>
         /// <returns>Is process correctly prepared</returns>
         protected bool PrepareBashProcess(bool stdOutput, bool stdError, bool stdInput)
         {
@@ -163,12 +171,19 @@ namespace FieldBotNG.Tools
             {
                 try
                 {
+                    string fileName = IsWSL 
+                                        ? "wsl" 
+                                        : "/bin/bash";
+                    string args = IsWSL 
+                                    ? $"-e {BashCommand}" 
+                                    : $"-c \"{BashCommand}\"";
+
                     CurrentBashProcess = new Process()
                     {
                         StartInfo = new ProcessStartInfo()
                         {
-                            FileName = "/bin/bash",
-                            Arguments = $"-c \"{BashCommand}\"",
+                            FileName = fileName,
+                            Arguments = args,
                             RedirectStandardOutput = stdOutput,
                             RedirectStandardError = stdError,
                             RedirectStandardInput = stdInput,
@@ -176,6 +191,16 @@ namespace FieldBotNG.Tools
                             CreateNoWindow = true
                         }
                     };
+
+                    if (stdOutput)
+                    {
+                        CurrentBashProcess.OutputDataReceived += CurrentBashProcess_OutputDataReceived;
+                    }
+
+                    if (stdError)
+                    {
+                        CurrentBashProcess.ErrorDataReceived += CurrentBashProcess_ErrorDataReceived;
+                    }
 
                     ExitProcessCode = null;
                     IsProcessRunning = false;
