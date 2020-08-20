@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace FieldBotNG.Tools
@@ -16,6 +18,11 @@ namespace FieldBotNG.Tools
         /// <param name="stdEventArgs">Data from StdOutput/StdError stream</param>
         public delegate void StdEventHandler(object sender, BashProcessStdEventArgs stdEventArgs);
 
+        /// <summary>
+        /// Represents method that will handle ExitedOrKilledProcessAction method. 
+        /// </summary>
+        /// <param name="sender">Source of stream event</param>
+        /// <param name="exitProcessEventArgs">Details about exited process</param>
         public delegate void ExitProcessEventHandler(object sender, BashProcessExitEventArgs exitProcessEventArgs);
 
         /// <summary>
@@ -28,6 +35,9 @@ namespace FieldBotNG.Tools
         /// </summary>
         public event StdEventHandler StandardErrorStringReceived;
 
+        /// <summary>
+        /// Occurs when process has been exited
+        /// </summary>
         public event ExitProcessEventHandler ExitedProcess;
 
         private string _bashCommand;
@@ -54,7 +64,13 @@ namespace FieldBotNG.Tools
         /// <summary>
         /// True if process is running via WSL, false if on Linux machine
         /// </summary>
-        public bool IsWSL { get; set; }
+        public bool? IsWSL 
+        {
+            get
+            {
+                return Helper.AppConfig?.WSL;
+            }
+        }
 
         /// <summary>
         /// Has process been started or is still running.
@@ -71,30 +87,57 @@ namespace FieldBotNG.Tools
         /// </summary>
         public int? ExitProcessCode { get; protected set; }
 
+        /// <summary>
+        /// Manage event subscription for StdOut
+        /// </summary>
+        public bool SubscribeStandardOutput { get; set; } = true;
+
+        /// <summary>
+        /// Manage event subscription for StdErr
+        /// </summary>
+        public bool SubscribeStandardError { get; set; } = true;
 
         /// <summary>
         /// Creates new BashProcess object
         /// </summary>
         /// <param name="bashCommand">Bash command to execute (Automatically using Replace("\"", "\\\"") on it).</param>
         /// <param name="isWSLMode">True if process is running via WSL (require installed WSL on machine!), false if on Linux machine</param>
-        public BashProcess(string bashCommand, bool isWSLMode = false)
+        public BashProcess(string bashCommand)
         {
             BashCommand = bashCommand;
-            IsWSL = isWSLMode;
+        }
+
+        /// <summary>
+        /// Runs process and asynchronusly reads standard output and wait for end of process executing.
+        /// </summary>
+        /// <param name="processTimeout">Time (in ms) to wait before SIGHTERM proces. If 0, process won't be killed - method will wait for exit</param>
+        /// <returns>Process's standard output result. Null if process doesn't even start or SubscribeStandardOutput is true</returns>
+        public async Task<string> RunNewProcessAndReadStdOutputAsync(int processTimeout = 0)
+        {
+            string stdOutputResult = null;
+
+            if (!SubscribeStandardOutput && RunNewProcess(true))
+            {
+                stdOutputResult = await CurrentBashProcess.StandardOutput.ReadToEndAsync();
+
+                WaitForFinish(processTimeout);
+            }
+
+            return stdOutputResult;
         }
 
         /// <summary>
         /// Runs process and reads standard output and wait for end of process executing.
         /// </summary>
         /// <param name="processTimeout">Time (in ms) to wait before SIGHTERM proces. If 0, process won't be killed - method will wait for exit</param>
-        /// <returns>Process's standard output result. Null if process doesn't even start</returns>
-        public async Task<string> RunNewProcesAndReadStdOutput(int processTimeout = 0)
+        /// <returns>Process's standard output result. Null if process doesn't even start or SubscribeStandardOutput is true</returns>
+        public string RunNewProcessAndReadStdOutput(int processTimeout = 0)
         {
             string stdOutputResult = null;
 
-            if (RunNewProcess(true))
+            if (!SubscribeStandardOutput && RunNewProcess(true))
             {
-                stdOutputResult = await CurrentBashProcess.StandardOutput.ReadToEndAsync();
+                stdOutputResult = CurrentBashProcess.StandardOutput.ReadToEnd();
 
                 WaitForFinish(processTimeout);
             }
@@ -153,12 +196,12 @@ namespace FieldBotNG.Tools
 
                 if (IsProcessRunning)
                 {
-                    if (stdOutput)
+                    if (stdOutput && SubscribeStandardOutput)
                     {
                         CurrentBashProcess.BeginOutputReadLine();
                     }
 
-                    if (stdError)
+                    if (stdError && SubscribeStandardError)
                     {
                         CurrentBashProcess.BeginErrorReadLine();
                     }
@@ -193,10 +236,10 @@ namespace FieldBotNG.Tools
             {
                 try
                 {
-                    string fileName = IsWSL 
+                    string fileName = IsWSL == true 
                                         ? "wsl" 
                                         : "/bin/bash";
-                    string args = IsWSL 
+                    string args = IsWSL == true
                                     ? $"-e {BashCommand}" 
                                     : $"-c \"{BashCommand}\"";
 
@@ -214,12 +257,12 @@ namespace FieldBotNG.Tools
                         }
                     };
 
-                    if (stdOutput)
+                    if (stdOutput && SubscribeStandardOutput)
                     {
                         CurrentBashProcess.OutputDataReceived += CurrentBashProcess_OutputDataReceived;
                     }
 
-                    if (stdError)
+                    if (stdError && SubscribeStandardError)
                     {
                         CurrentBashProcess.ErrorDataReceived += CurrentBashProcess_ErrorDataReceived;
                     }
@@ -266,9 +309,10 @@ namespace FieldBotNG.Tools
 
             CurrentBashProcess.Kill();
             CurrentBashProcess.WaitForExit();
-            CurrentBashProcess.Dispose();
 
             ExitedOrKilledProcessAction(true);
+
+            CurrentBashProcess.Dispose();
         }
 
         /// <summary>
@@ -278,8 +322,48 @@ namespace FieldBotNG.Tools
         /// <returns>True if process has been started succesfully, false if not.</returns>
         public static bool KillProcess(int pid)
         {
-            BashProcess killer = new BashProcess($"kill -9 {pid}", Helper.AppConfig.WSL);
+            BashProcess killer = new BashProcess($"kill -9 {pid}");
             return killer.RunNewProcessAndWaitForFinish();
+        }
+
+        /// <summary>
+        /// Finds PIDs by using `ps -lef` command
+        /// </summary>
+        /// <param name="commandToFind">Command looking for in CMD column</param>
+        /// <returns>List of PIDs, matches to commands find in CMD column</returns>
+        public static List<int> FindPIDs(string commandToFind)
+        {
+            List<int> PIDs = new List<int>();
+
+            string psCommand = "ps -lef";
+
+            BashProcess psProcess = new BashProcess(psCommand)
+            {
+                SubscribeStandardOutput = false
+            };
+
+            string psResult = psProcess.RunNewProcessAndReadStdOutput();
+
+            commandToFind = Regex.Escape(commandToFind);
+            Regex pidRegex = new Regex($@"[0-9] [A-Z] \w+\s+(\d+).* {commandToFind}");
+            MatchCollection pidMatches = pidRegex.Matches(psResult);
+
+            if (pidMatches.Count > 0)
+            {
+                foreach (Match match in pidMatches)
+                {
+                    if (match.Groups?.Count > 1)
+                    {
+                        string pid = match.Groups[1].Value;
+                        if (int.TryParse(pid, out int foundPid))
+                        {
+                            PIDs.Add(foundPid);
+                        }
+                    }
+                }
+            }
+
+            return PIDs;
         }
 
         /// <summary>
