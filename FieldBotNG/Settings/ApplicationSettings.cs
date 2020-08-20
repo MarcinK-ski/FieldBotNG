@@ -1,14 +1,13 @@
-﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace FieldBotNG.Settings
+﻿namespace FieldBotNG.Settings
 {
-    class ApplicationSettings
+    /// <summary>
+    /// Application settings root class
+    /// </summary>
+    public class ApplicationSettings : TunnelingTools.Settings.ApplicationSettings
     {
+        /// <summary>
+        /// Discord bot details
+        /// </summary>
         public DiscordBotSettings DiscordBot { get; set; }
-
-        public TunnelSettings Tunnel { get; set; }
     }
 }
