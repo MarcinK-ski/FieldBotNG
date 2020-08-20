@@ -3,6 +3,14 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Company>KalikDev</Company>
+    <Authors>KalikDev</Authors>
+    <Copyright>Marcin K-ski</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl></PackageProjectUrl>
+    <Product>ReverseSSHTunnel - Example</Product>
+    <Description>Example usage TunnelingTools library</Description>
+    <RepositoryUrl>https://github.com/MarcinK-ski/FieldBotNG</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>

@@ -2,6 +2,16 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Company>KalikDev</Company>
+    <Authors>KalikDev</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl></PackageProjectUrl>
+    <Description>
+Library allows create, run and kill linux process on WSL or native LinuxOS.
+
+Written as a part of FieldBotNG, but can be used separately</Description>
+    <Copyright>Marcin K-ski</Copyright>
+    <RepositoryUrl>https://github.com/MarcinK-ski/FieldBotNG</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
