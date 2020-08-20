@@ -1,5 +1,6 @@
 ﻿using FieldBotNG.Settings;
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -10,6 +11,11 @@ namespace FieldBotNG.Tools
     /// </summary>
     public class ReverseSSHTunnel
     {
+        /// <summary>
+        /// Last BashProcess command, used to create Reverse SSH Tunnel
+        /// </summary>
+        public string LastStartedCommandSSH { get; private set; }
+
         /// <summary>
         /// Reverse SSH tunnel process
         /// </summary>
@@ -91,8 +97,8 @@ namespace FieldBotNG.Tools
         /// <returns></returns>
         public bool Start(string bindAddress = "0.0.0.0")
         {
-            string bashCommand = $"ssh -NvR {bindAddress}:{RemoteHost.Port}:{LocalSideHost.IP}:{LocalSideHost.Port} {RemoteHost.User}@{RemoteHost.IP}";
-            _SSHProcess = new BashProcess(bashCommand, Helper.AppConfig.WSL);
+            LastStartedCommandSSH = $"ssh -NvR {bindAddress}:{RemoteHost.Port}:{LocalSideHost.IP}:{LocalSideHost.Port} {RemoteHost.User}@{RemoteHost.IP}";
+            _SSHProcess = new BashProcess(LastStartedCommandSSH);
 
             _SSHProcess.StandardOutputStringReceived += _SSHProcess_StandardOutputStringReceived;
             _SSHProcess.StandardErrorStringReceived += _SSHProcess_StandardOutputStringReceived;
@@ -145,10 +151,20 @@ namespace FieldBotNG.Tools
         /// <summary>
         /// Stop tunnel
         /// </summary>
-        public void Stop()
+        public async Task<TunnelConnectionState> Stop()
         {
             _SSHProcess.KillProcess();
             IsTunnelEstablished = !_SSHProcess.IsProcessRunning;
+            if (await CheckConnectionType() != TunnelConnectionState.NoConnection)
+            {
+                List<int> PIDs = BashProcess.FindPIDs(LastStartedCommandSSH);
+                foreach (int pid in PIDs)
+                {
+                    BashProcess.KillProcess(pid);
+                }
+            }
+
+            return await CheckConnectionType();
         }
 
         /// <summary>
@@ -160,9 +176,12 @@ namespace FieldBotNG.Tools
         {
             string netstatLocalAddress = null;
 
-            BashProcess netstatProcess = new BashProcess($"ssh {RemoteHost.User}@{RemoteHost.IP} netstat -tapn");
+            BashProcess netstatProcess = new BashProcess($"ssh {RemoteHost.User}@{RemoteHost.IP} netstat -tlnp")
+            {
+                SubscribeStandardOutput = false
+            };
 
-            string netstatResult = await netstatProcess.RunNewProcesAndReadStdOutput();
+            string netstatResult = await netstatProcess.RunNewProcessAndReadStdOutputAsync();
 
             if (!string.IsNullOrWhiteSpace(netstatResult))
             {
