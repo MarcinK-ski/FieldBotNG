@@ -3,6 +3,6 @@
     class Program
     {
         public static void Main()
-            => new DiscordConnection().MainAsync().GetAwaiter().GetResult();
+            => new DiscordBotCore().MainAsync().GetAwaiter().GetResult();
     }
 }
