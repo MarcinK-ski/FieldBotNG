@@ -320,9 +320,9 @@ namespace FieldBotNG.Tools
         /// </summary>
         /// <param name="pid">Process ID</param>
         /// <returns>True if process has been started succesfully, false if not.</returns>
-        public static bool KillProcess(int pid)
+        public static bool KillProcess(int pid, BashProcessKillSignals signalNumber = BashProcessKillSignals.SIGTERM)
         {
-            BashProcess killer = new BashProcess($"kill -9 {pid}");
+            BashProcess killer = new BashProcess($"kill -{(int)signalNumber} {pid}");
             return killer.RunNewProcessAndWaitForFinish();
         }
 
