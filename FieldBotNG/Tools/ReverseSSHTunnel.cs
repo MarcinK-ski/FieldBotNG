@@ -118,6 +118,8 @@ namespace FieldBotNG.Tools
              *  - Output is not null/empty
              *  - Password prompt
              */
+
+            /*            
             if (_SSHProcess.CurrentBashProcess.StartInfo.RedirectStandardInput && !string.IsNullOrWhiteSpace(output))
             {
                 string user = Regex.Escape(RemoteHost.User);
@@ -125,6 +127,7 @@ namespace FieldBotNG.Tools
 
                 CheckIsPasswordPromptAndInputIt(output, $@"{user}\@{ip}\'s password:");
             }
+            */
         }
 
         /// <summary>
