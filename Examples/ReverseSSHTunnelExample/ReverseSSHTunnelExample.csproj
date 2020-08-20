@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\TunnelingTools\TunnelingTools.csproj" />
+    <ProjectReference Include="..\..\Tools\TunnelingTools\TunnelingTools.csproj" />
   </ItemGroup>
 
   <ItemGroup>
