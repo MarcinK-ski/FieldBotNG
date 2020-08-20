@@ -92,26 +92,48 @@ namespace FieldBotNG.Tools
         {
             string stdOutputResult = null;
 
-            if (RunNewProcess(false))
+            if (RunNewProcess(true))
             {
                 stdOutputResult = await CurrentBashProcess.StandardOutput.ReadToEndAsync();
 
-                if (processTimeout > 0)
-                {
-                    bool isExited = CurrentBashProcess.WaitForExit(processTimeout);
-
-                    if (!isExited)
-                    {
-                        CurrentBashProcess.Kill();
-                    }
-                }
-                else
-                {
-                    CurrentBashProcess.WaitForExit();
-                }
+                WaitForFinish(processTimeout);
             }
 
             return stdOutputResult;
+        }
+
+        /// <summary>
+        /// Runs new process and just wait for finish.
+        /// </summary>
+        /// <param name="processTimeout">Time (in ms) to wait before SIGHTERM proces. If 0, process won't be killed - method will wait for exit</param>
+        /// <returns>Has process been started succesfully</returns>
+        public bool RunNewProcessAndWaitForFinish(int processTimeout = 0)
+        {
+            bool isProcessStarted = RunNewProcess();
+            WaitForFinish(processTimeout);
+
+            return isProcessStarted;
+        }
+
+        /// <summary>
+        /// Waits for process finish or terminate after processTimeout
+        /// </summary>
+        /// <param name="processTimeout">Time (in ms) to wait before SIGHTERM proces. If 0, process won't be killed - method will wait for exit</param>
+        private void WaitForFinish(int processTimeout)
+        {
+            if (processTimeout > 0)
+            {
+                bool isExited = CurrentBashProcess.WaitForExit(processTimeout);
+
+                if (!isExited)
+                {
+                    CurrentBashProcess.Kill();
+                }
+            }
+            else
+            {
+                CurrentBashProcess.WaitForExit();
+            }
         }
 
         /// <summary>
@@ -249,6 +271,21 @@ namespace FieldBotNG.Tools
             ExitedOrKilledProcessAction(true);
         }
 
+        /// <summary>
+        /// Kill process by PID
+        /// </summary>
+        /// <param name="pid">Process ID</param>
+        /// <returns>True if process has been started succesfully, false if not.</returns>
+        public static bool KillProcess(int pid)
+        {
+            BashProcess killer = new BashProcess($"kill -9 {pid}", Helper.AppConfig.WSL);
+            return killer.RunNewProcessAndWaitForFinish();
+        }
+
+        /// <summary>
+        /// Action called on process Exit or Kill 
+        /// </summary>
+        /// <param name="isKilled">Has process been killed</param>
         protected void ExitedOrKilledProcessAction(bool isKilled)
         {
             IsProcessRunning = false;
