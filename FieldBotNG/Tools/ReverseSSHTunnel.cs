@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace FieldBotNG.Tools
 {
     /// <summary>
-    /// 
+    /// Class to create Reverse SSH Tunneling
     /// </summary>
     public class ReverseSSHTunnel
     {
@@ -117,7 +117,7 @@ namespace FieldBotNG.Tools
             string output = stdEventArgs.Output;
             Console.WriteLine($">{output}");
 
-            /*
+            /* TODO:
              * Enter password when:
              *  - StdInput is true
              *  - Output is not null/empty
