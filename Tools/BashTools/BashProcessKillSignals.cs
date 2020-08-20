@@ -1,5 +1,8 @@
 ﻿namespace BashTools
 {
+    /// <summary>
+    /// Linux signals from `kill` command
+    /// </summary>
     public enum BashProcessKillSignals
     {
         SIGHUP = 1,
@@ -10,12 +13,18 @@
         SIGABRT,
         SIGBUS,
         SIGFPE,
+        /// <summary>
+        /// Brutal signal to kill
+        /// </summary>
         SIGKILL,
         SIGUSR1,
         SIGSEGV,
         SIGUSR2,
         SIGPIPE,
         SIGALRM,
+        /// <summary>
+        /// Default signal
+        /// </summary>
         SIGTERM,
         SIGSTKFLT,
         SIGCHLD,

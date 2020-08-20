@@ -2,6 +2,9 @@
 
 namespace BashTools
 {
+    /// <summary>
+    /// Contains event data when process has data on Standard Output/Error
+    /// </summary>
     public class BashProcessStdEventArgs : EventArgs
     {
         /// <summary>

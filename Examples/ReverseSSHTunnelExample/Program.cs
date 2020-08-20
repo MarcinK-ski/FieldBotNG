@@ -8,7 +8,7 @@ namespace ReverseSSHTunnelExample
     {
         static async Task Main()
         {
-            BashTools.BashProcess.IsWSL = true;
+            BashTools.BashProcess.IsWSL = SettingsManager.AppConfig.WSL;
 
             ReverseSSHTunnel reverseSSHTunnel = new ReverseSSHTunnel(SettingsManager.AppConfig.RemoteHost, SettingsManager.AppConfig.LocalHost);
             reverseSSHTunnel.Start();

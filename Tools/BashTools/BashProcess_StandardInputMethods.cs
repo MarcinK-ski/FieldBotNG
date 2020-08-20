@@ -10,7 +10,7 @@
         {
             if (!CurrentBashProcess.StartInfo.RedirectStandardInput)
             {
-                throw new BashProcessNotRedirecterStandardInputException();
+                throw new BashProcessIsNotRedirectingStandardInputException();
             }
         }
         /// <summary>
