@@ -9,7 +9,7 @@ namespace ReverseSSHTunnelExample
     {
         static async Task Main()
         {
-            ReverseSSHTunnel reverseSSHTunnel = new ReverseSSHTunnel(Helper.AppConfig.RemoteHost, Helper.AppConfig.LocalHost);
+            ReverseSSHTunnel reverseSSHTunnel = new ReverseSSHTunnel(SettingsManager.AppConfig.RemoteHost, SettingsManager.AppConfig.LocalHost);
             reverseSSHTunnel.Start();
 
             TunnelConnectionState currentConnectionState = await reverseSSHTunnel.CheckConnectionType();

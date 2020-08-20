@@ -1,12 +1,9 @@
 ﻿using FieldBotNG.Settings;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace FieldBotNG
 {
-    public static class Helper
+    public static class SettingsManager
     {
         public const string APP_SETTINGS_JSON_LOCATION = "appsettings.json";
         public const string ROOT_OBJECT_NAME_IN_JSON = "appsettings";

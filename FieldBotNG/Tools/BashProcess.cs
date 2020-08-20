@@ -68,7 +68,7 @@ namespace FieldBotNG.Tools
         {
             get
             {
-                return Helper.AppConfig?.WSL;
+                return SettingsManager.AppConfig?.WSL;
             }
         }
 

@@ -14,13 +14,13 @@ namespace FieldBotNG
 
         public async Task MainAsync()
         {
-            _tunnel = new ReverseSSHTunnel(Helper.AppConfig.RemoteHost, Helper.AppConfig.LocalHost);
+            _tunnel = new ReverseSSHTunnel(SettingsManager.AppConfig.RemoteHost, SettingsManager.AppConfig.LocalHost);
 
             _client = new DiscordSocketClient();
             _client.Log += Log;
             _client.MessageReceived += MessageReceived;
 
-            await _client.LoginAsync(Discord.TokenType.Bot, Helper.AppConfig.DiscordBot.Token);
+            await _client.LoginAsync(Discord.TokenType.Bot, SettingsManager.AppConfig.DiscordBot.Token);
             await _client.StartAsync();
 
             await Task.Delay(-1);
@@ -30,7 +30,7 @@ namespace FieldBotNG
         {
             if (message.Content.StartsWith('!'))
             {
-                if (Helper.AppConfig.DiscordBot.AllowedChannels.Contains(message.Channel.Id))
+                if (SettingsManager.AppConfig.DiscordBot.AllowedChannels.Contains(message.Channel.Id))
                 {
                     await HandleMessage(message);
                 }
