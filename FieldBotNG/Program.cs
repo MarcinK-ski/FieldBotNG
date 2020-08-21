@@ -39,8 +39,9 @@ namespace FieldBotNG
             _client.Log += Log;
             _client.MessageReceived += MessageReceived;
 
-            await _client.LoginAsync(Discord.TokenType.Bot, SettingsManager.AppConfig.DiscordBot.Token);
+            await _client.LoginAsync(TokenType.Bot, SettingsManager.AppConfig.DiscordBot.Token);
             await _client.StartAsync();
+            await SetCurrentActivity(tunnelConnectionState.Item1);
 
             await Task.Delay(-1);
         }
@@ -160,8 +161,14 @@ namespace FieldBotNG
                 TunnelConnectionState? tunnelConnectionState = await CheckConnection();
                 await message.Channel.SendMessageAsync($"Aktualny status połączenia, to: *{tunnelConnectionState}*");
             }
+
+            await SetCurrentActivity(await CheckConnection());
         }
 
+        /// <summary>
+        /// Checks current connection with TunnelUnknownConnectionStateException catching 
+        /// </summary>
+        /// <returns></returns>
         private static async Task<TunnelConnectionState?> CheckConnection()
         {
             try
@@ -173,6 +180,33 @@ namespace FieldBotNG
                 Console.WriteLine($"Problem while checking connection type: {ex.Message}");
                 return null;
             }
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="item1"></param>
+        /// <returns></returns>
+        private static async Task SetCurrentActivity(TunnelConnectionState? tunnelConnectionState)
+        {
+            Game game;
+            switch (tunnelConnectionState)
+            {
+                case TunnelConnectionState.RemoteConnection:
+                case TunnelConnectionState.LocalConnection:
+                    game = new Game($"{tunnelConnectionState} in {SettingsManager.AppConfig.RemoteHost.GetPortAndIP()}", ActivityType.Playing);
+                    break;
+                case TunnelConnectionState.NoConnection:
+                case TunnelConnectionState.StoppedWithoutChecking:
+                    game = new Game(tunnelConnectionState.ToString(), ActivityType.Listening);
+                    break;
+                default:
+                    game = null;
+                    break;
+            }
+
+            await _client.SetActivityAsync(game);
         }
 
         /// <summary>
