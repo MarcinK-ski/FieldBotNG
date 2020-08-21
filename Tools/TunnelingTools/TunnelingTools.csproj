@@ -2,15 +2,17 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <PackageId>TunnelingTools</PackageId>
+    <Product>TunnelingTools</Product>
+    <Version>1.1.0</Version>
     <Company>KalikDev</Company>
     <Authors>KalikDev</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Copyright>Marcin K-ski</Copyright>
     <Description>
 Library using BashTools and allows create and manage reverse SSH tunnels.
 
 Written as a part of FieldBotNG, but can be used separately</Description>
-    <PackageProjectUrl></PackageProjectUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Copyright>Marcin K-ski</Copyright>
     <RepositoryUrl>https://github.com/MarcinK-ski/FieldBotNG</RepositoryUrl>
   </PropertyGroup>
 

@@ -2,15 +2,17 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Product>BashTools</Product>
+    <PackageId>BashTools</PackageId>
+    <Version>1.0.1</Version>
     <Company>KalikDev</Company>
     <Authors>KalikDev</Authors>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl></PackageProjectUrl>
+    <Copyright>Marcin K-ski</Copyright>
     <Description>
 Library allows create, run and kill linux process on WSL or native LinuxOS.
 
 Written as a part of FieldBotNG, but can be used separately</Description>
-    <Copyright>Marcin K-ski</Copyright>
     <RepositoryUrl>https://github.com/MarcinK-ski/FieldBotNG</RepositoryUrl>
   </PropertyGroup>
 

@@ -20,6 +20,11 @@
         /// <summary>
         /// There no tunnel connection
         /// </summary>
-        NoConnection
+        NoConnection,
+
+        /// <summary>
+        /// Tunnel has been stopped, but without check, is server has still any connection on tunnel port.
+        /// </summary>
+        StoppedWithoutChecking
     }
 }

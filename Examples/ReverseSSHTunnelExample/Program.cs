@@ -19,7 +19,7 @@ namespace ReverseSSHTunnelExample
             Console.WriteLine("\nClick any key, to stop tunnel...");
             Console.ReadKey();
 
-            currentConnectionState = await reverseSSHTunnel.Stop();
+            currentConnectionState = (await reverseSSHTunnel.Stop()).Item1;
             Console.WriteLine($"\nTunnel has been stopped. Current connection state => {currentConnectionState}");
 
             Console.WriteLine("\nClick any key, to exit demo app...");

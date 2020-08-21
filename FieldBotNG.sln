@@ -9,11 +9,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{F1
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ReverseSSHTunnelExample", "Examples\ReverseSSHTunnelExample\ReverseSSHTunnelExample.csproj", "{5ABDEF69-B19D-41EC-8CA9-3160E8EA9332}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BashTools", "Tools\BashTools\BashTools.csproj", "{C3383B5F-3AC9-4C3C-951D-E42D714C5261}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BashTools", "Tools\BashTools\BashTools.csproj", "{C3383B5F-3AC9-4C3C-951D-E42D714C5261}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TunnelingTools", "Tools\TunnelingTools\TunnelingTools.csproj", "{45891257-591B-435F-9521-4DEEA3A0DEEC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TunnelingTools", "Tools\TunnelingTools\TunnelingTools.csproj", "{45891257-591B-435F-9521-4DEEA3A0DEEC}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{3B09007A-26CF-4375-ACEB-D46E7D85CA2C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CE305E5F-28C3-4B1F-948F-CD80B804DD11}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
