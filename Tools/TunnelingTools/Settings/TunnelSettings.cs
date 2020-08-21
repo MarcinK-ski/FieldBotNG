@@ -29,5 +29,14 @@
         /// Host password
         /// </summary>
         public string Password { get; set; }
+
+        /// <summary>
+        /// Gets address IP and port number
+        /// </summary>
+        /// <returns>String in format `IP:Port`</returns>
+        public string GetPortAndIP()
+        {
+            return $"{IP}:{Port}";
+        }
     }
 }
