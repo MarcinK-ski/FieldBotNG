@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using TunnelingTools.Settings;
 
@@ -13,6 +14,21 @@ namespace TunnelingTools
     public class ReverseSSHTunnel
     {
         /// <summary>
+        /// SSH format for string.Format() method
+        /// </summary>
+        public const string SSH_FORMAT_STRING = "ssh -NvR {0}:{1}:{2}:{3} {4}@{5}";
+
+        /// <summary>
+        /// Bind address, used for default reverse SSH tunnel command
+        /// </summary>
+        public const string DEFAULT_BIND_ADDRESS = "0.0.0.0";
+
+        /// <summary>
+        /// Default SSH command - created in constructor
+        /// </summary>
+        public string DefaultSSHCommand { get; }
+
+        /// <summary>
         /// Last BashProcess command, used to create Reverse SSH Tunnel
         /// </summary>
         public string LastStartedCommandSSH { get; private set; }
@@ -22,11 +38,17 @@ namespace TunnelingTools
         /// </summary>
         private BashProcess _SSHProcess;
 
+        /// <summary>
+        /// Gets info, is local or remote host was changed since object was created
+        /// </summary>
+        public bool IsHostChanged { get; private set; }
+
         private TunnelSettings _remoteHost;
         /// <summary>
         /// Gets or sets Remote Host.
         /// Pay atention! It can't be changed, while tunnel is established!
         /// </summary>
+        /// <exception cref="TunnelEstablishedException">Throws, when tunnel in this object is established</exception>
         public TunnelSettings RemoteHost 
         {
             get
@@ -38,6 +60,7 @@ namespace TunnelingTools
                 if (!IsTunnelEstablished)
                 {
                     _remoteHost = value;
+                    IsHostChanged = true;
                 }
                 else
                 {
@@ -51,6 +74,7 @@ namespace TunnelingTools
         /// Gets or sets Local Side Host.
         /// Pay atention! It can't be changed, while tunnel is established!
         /// </summary>
+        /// <exception cref="TunnelEstablishedException">Throws, when tunnel in this object is established</exception>
         public TunnelSettings LocalSideHost
         {
             get
@@ -62,6 +86,7 @@ namespace TunnelingTools
                 if (!IsTunnelEstablished)
                 {
                     _localSideHost = value;
+                    IsHostChanged = true;
                 }
                 else
                 {
@@ -82,8 +107,11 @@ namespace TunnelingTools
         /// <param name="localSideHost">Local side host - visible or invisible in internet by IP</param>
         public ReverseSSHTunnel(TunnelSettings remoteHost, TunnelSettings localSideHost)
         {
-            RemoteHost = remoteHost;
-            LocalSideHost = localSideHost;
+            _remoteHost = remoteHost;
+            _localSideHost = localSideHost;
+
+
+            DefaultSSHCommand = string.Format(SSH_FORMAT_STRING, DEFAULT_BIND_ADDRESS, RemoteHost.Port, LocalSideHost.IP, LocalSideHost.Port, RemoteHost.User, RemoteHost.IP);
         }
 
         /// <summary>
@@ -96,9 +124,17 @@ namespace TunnelingTools
         /// Specifying a remote bind_address will only succeed if the server's GatewayPorts option is enabled.
         /// </param>
         /// <returns></returns>
-        public bool Start(string bindAddress = "0.0.0.0")
+        public bool Start(string bindAddress = DEFAULT_BIND_ADDRESS)
         {
-            LastStartedCommandSSH = $"ssh -NvR {bindAddress}:{RemoteHost.Port}:{LocalSideHost.IP}:{LocalSideHost.Port} {RemoteHost.User}@{RemoteHost.IP}";
+            if (bindAddress == DEFAULT_BIND_ADDRESS && !IsHostChanged)
+            {
+                LastStartedCommandSSH = DefaultSSHCommand;
+            }
+            else
+            {
+                LastStartedCommandSSH = string.Format(SSH_FORMAT_STRING, bindAddress, RemoteHost.Port, LocalSideHost.IP, LocalSideHost.Port, RemoteHost.User, RemoteHost.IP);
+            }
+
             _SSHProcess = new BashProcess(LastStartedCommandSSH);
 
             _SSHProcess.StandardOutputStringReceived += _SSHProcess_StandardOutputStringReceived;
@@ -145,27 +181,64 @@ namespace TunnelingTools
             Match match = regex.Match(outputOrErrorData);
             if (match.Success)
             {
-                _SSHProcess.WriteToStandardInput(RemoteHost.Password);
+                try
+                {
+                    _SSHProcess.WriteToStandardInput(RemoteHost.Password);
+                }
+                catch (BashProcessIsNotRedirectingStandardInputException ex)
+                {
+                    // TODO, when it will works
+                }
             }
         }
 
         /// <summary>
         /// Stop tunnel
         /// </summary>
-        public async Task<TunnelConnectionState> Stop()
+        /// <returns>Connection state of tunnel and string with error message if occured (null if no error).</returns>
+        /// <exception cref="BashProcessNotInintializedException">Throws when tunneling proces wasn't initialized</exception>
+        /// <exception cref="BashProcessNotRunningException">Throws when tunneling proces is not running</exception>
+        public async Task<(TunnelConnectionState, string)> Stop()
         {
-            _SSHProcess.KillProcess();
-            IsTunnelEstablished = !_SSHProcess.IsProcessRunning;
-            if (await CheckConnectionType() != TunnelConnectionState.NoConnection)
+            if (_SSHProcess == null)
             {
-                List<int> PIDs = BashProcess.FindPIDs(LastStartedCommandSSH);
-                foreach (int pid in PIDs)
-                {
-                    BashProcess.KillProcess(pid);
-                }
+                throw new BashProcessNotInintializedException();
+            }
+            else if (!_SSHProcess.IsProcessRunning || _SSHProcess.CurrentBashProcess.HasExited)
+            {
+                IsTunnelEstablished = false;
+                throw new BashProcessNotRunningException();
             }
 
-            return await CheckConnectionType();
+            _SSHProcess.KillProcess();
+            IsTunnelEstablished = false;
+
+            return await CheckAndKillOldProcesses();
+        }
+
+        /// <summary>
+        /// Finds old processes used by last command and kill them
+        /// </summary>
+        /// <returns>Current tunnel connection type</returns>
+        public async Task<(TunnelConnectionState, string)> CheckAndKillOldProcesses()
+        {
+            try
+            {
+                if (await CheckConnectionType() != TunnelConnectionState.NoConnection)
+                {
+                    List<int> PIDs = BashProcess.FindPIDs(LastStartedCommandSSH ?? DefaultSSHCommand);
+                    foreach (int pid in PIDs)
+                    {
+                        BashProcess.KillProcess(pid);
+                    }
+                }
+
+                return (await CheckConnectionType(), null);
+            }
+            catch (TunnelEstablishedException ex)
+            {
+                return (TunnelConnectionState.StoppedWithoutChecking, ex.Message);
+            }
         }
 
         /// <summary>
@@ -173,6 +246,8 @@ namespace TunnelingTools
         /// (To execute this method, device must be ssh authorised_host (ssh can't ask for password))
         /// </summary>
         /// <returns>Tunnel connection state or throws TunnelUnknownConnectionStateException when netstat has no result.</returns>
+        /// <exception cref="TunnelUnknownConnectionStateException">When netstat on remote device (command executed via SSH) returns null/whitespace (no netstatResult) 
+        /// or when regexp match for netstat result, finds other address (than `0.0.0.0`/`127.0.0.1`) using tunnel's port.</exception>
         public async Task<TunnelConnectionState> CheckConnectionType()
         {
             string netstatLocalAddress = null;
@@ -201,7 +276,7 @@ namespace TunnelingTools
                     case "127.0.0.1":
                         IsTunnelEstablished = true;
                         return TunnelConnectionState.LocalConnection;
-                    case null:
+                    case null:  // No match for regexp pattern - it means, no connection established
                         IsTunnelEstablished = false;
                         return TunnelConnectionState.NoConnection;
                     default:
