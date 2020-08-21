@@ -187,6 +187,7 @@ namespace TunnelingTools
                 }
                 catch (BashProcessIsNotRedirectingStandardInputException ex)
                 {
+                    Console.WriteLine(ex.GetType());
                     // TODO, when it will works
                 }
             }
