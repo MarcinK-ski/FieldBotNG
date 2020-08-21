@@ -1,4 +1,5 @@
-﻿using Discord;
+﻿using BashTools;
+using Discord;
 using Discord.WebSocket;
 using System;
 using System.Text;
@@ -21,9 +22,18 @@ namespace FieldBotNG
 
         static async Task Main()
         {
-            BashTools.BashProcess.IsWSL = SettingsManager.AppConfig.WSL;
+            BashProcess.IsWSL = SettingsManager.AppConfig.WSL;
 
             _tunnel = new ReverseSSHTunnel(SettingsManager.AppConfig.RemoteHost, SettingsManager.AppConfig.LocalHost);
+
+            (TunnelConnectionState, string) tunnelConnectionState = await _tunnel.CheckAndKillOldProcesses();
+            Console.WriteLine($"Current tunnel state is: {tunnelConnectionState.Item1}");
+            
+            if (!string.IsNullOrWhiteSpace(tunnelConnectionState.Item2))
+            {
+                Console.WriteLine($"Error while killing processes: {tunnelConnectionState.Item2}");
+            }
+
             _client = new DiscordSocketClient();
 
             _client.Log += Log;
@@ -77,10 +87,12 @@ namespace FieldBotNG
             {
                 if (_tunnel.IsTunnelEstablished)
                 {
-                    await message.Channel.SendMessageAsync("Tunel już istnieje. Stan możesz sprawdzić wpisując `!s`. Jeśli po wpisaniu `!s`, pojawi się informacja o braku połączenia, spróbuj jeszcze raz.");
+                    await message.Channel.SendMessageAsync("Tunel już istnieje. Stan możesz sprawdzić wpisując `!s`. \nJeśli po wpisaniu `!s`, pojawi się informacja o braku połączenia, spróbuj jeszcze raz.");
                 }
                 else
                 {
+                    await message.Channel.SendMessageAsync("Próba utworzenia tunelu...");
+
                     bool isTunnelStarted = _tunnel.Start();
 
                     if (isTunnelStarted)
@@ -95,20 +107,71 @@ namespace FieldBotNG
             }
             else if (content.Contains('r')) // Disconnect - "Rozlacz"
             {
-                TunnelConnectionState tunnelConnectionStateAfterStopped = await _tunnel.Stop();
-                if (tunnelConnectionStateAfterStopped == TunnelConnectionState.NoConnection)
+                await message.Channel.SendMessageAsync("Czekaj...");
+
+                TunnelConnectionState? tunnelConnectionState = await CheckConnection();
+
+                if (_tunnel.IsTunnelEstablished)
                 {
-                    await message.Channel.SendMessageAsync("Pomyślnie rozłączono!");
+                    try
+                    {
+                        (TunnelConnectionState, string) stoppingResult = await _tunnel.Stop();
+                        tunnelConnectionState = stoppingResult.Item1;
+
+                        if (tunnelConnectionState == TunnelConnectionState.NoConnection)
+                        {
+                            await message.Channel.SendMessageAsync("Pomyślnie rozłączono!");
+                        }
+                        else if (tunnelConnectionState == TunnelConnectionState.StoppedWithoutChecking)
+                        {
+                            await message.Channel.SendMessageAsync($"Rozłączono, ale nie wystąpiło sprawdzenie istniejących połączeń. Treść błędu: {stoppingResult.Item2}");
+                        }
+                        else
+                        {
+                            await message.Channel.SendMessageAsync($"Próbowano rozłączyć, ale wystąpił błąd. Aktualny stan to: *{tunnelConnectionState}*. \n**Spradź koniecznie stan za jakiś czas!**");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (ex is BashProcessNotInintializedException)
+                        {
+                            await message.Channel.SendMessageAsync($"Nastąpiła próba zatrzymania tunelu, który nie został jeszcze utworzony. `{ex.GetType()}`");
+                        }
+                        else if (ex is BashProcessNotRunningException)
+                        {
+                            await message.Channel.SendMessageAsync($"Nastąpiła próba zatrzymania tunelu, który nie został jeszcze uruchomiony lub został wcześniej zatrzymany. `{ex.GetType()}`");
+                        }
+                        else
+                        {
+                            await message.Channel.SendMessageAsync($"Wystąpił nieznany błąd podczas zatrzymywania. \nTreść błędu `{ex.GetType()}`: ```{ex.Message}```");
+                        }
+                    }
+
                 }
                 else
                 {
-                    await message.Channel.SendMessageAsync($"Próbowano rozłączyć, ale wystąpił błąd. Aktualny stan to: *{tunnelConnectionStateAfterStopped}*. **Spradź koniecznie stan za jakiś czas!**");
+                    await message.Channel.SendMessageAsync($"Wstępna analiza, wykazala że tunel nie został utworzony *(stan połączenia to: `{tunnelConnectionState}`)*. \nJeśli chcesz się połączyć, wpisz `!p`.");
                 }
             }
             else if (content.Contains('s')) // Connection status - "Status polaczenia"
             {
-                TunnelConnectionState tunnelConnectionState = await _tunnel.CheckConnectionType();
+                await message.Channel.SendMessageAsync("Sprawdzanie statusu połączenia...");
+
+                TunnelConnectionState? tunnelConnectionState = await CheckConnection();
                 await message.Channel.SendMessageAsync($"Aktualny status połączenia, to: *{tunnelConnectionState}*");
+            }
+        }
+
+        private static async Task<TunnelConnectionState?> CheckConnection()
+        {
+            try
+            {
+                return await _tunnel.CheckConnectionType();
+            }
+            catch (TunnelUnknownConnectionStateException ex)
+            {
+                Console.WriteLine($"Problem while checking connection type: {ex.Message}");
+                return null;
             }
         }
 
