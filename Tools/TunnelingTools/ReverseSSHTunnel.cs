@@ -111,7 +111,7 @@ namespace TunnelingTools
             _localSideHost = localSideHost;
 
 
-            DefaultSSHCommand = string.Format(SSH_FORMAT_STRING, DEFAULT_BIND_ADDRESS, RemoteHost.Port, LocalSideHost.IP, LocalSideHost.Port, RemoteHost.User, RemoteHost.IP);
+            DefaultSSHCommand = CreateCommandString(SSH_FORMAT_STRING, DEFAULT_BIND_ADDRESS, RemoteHost.Port, LocalSideHost.IP, LocalSideHost.Port, RemoteHost.User, RemoteHost.IP);
         }
 
         /// <summary>
@@ -132,7 +132,7 @@ namespace TunnelingTools
             }
             else
             {
-                LastStartedCommandSSH = string.Format(SSH_FORMAT_STRING, bindAddress, RemoteHost.Port, LocalSideHost.IP, LocalSideHost.Port, RemoteHost.User, RemoteHost.IP);
+                LastStartedCommandSSH = CreateCommandString(SSH_FORMAT_STRING, bindAddress, RemoteHost.Port, LocalSideHost.IP, LocalSideHost.Port, RemoteHost.User, RemoteHost.IP);
             }
 
             _SSHProcess = new BashProcess(LastStartedCommandSSH);
@@ -142,6 +142,22 @@ namespace TunnelingTools
 
             IsTunnelEstablished = _SSHProcess.RunNewProcess(true, true, true);
             return IsTunnelEstablished;
+        }
+
+        /// <summary>
+        /// Create command by formatString and parameters
+        /// </summary>
+        /// <param name="sshFormatString">Format string</param>
+        /// <param name="bindAddress">Bind address to override bound to loopback interface</param>
+        /// <param name="remotePort">Remote port (for connecting from remote side)</param>
+        /// <param name="localIP">Local IP (forwarded device)</param>
+        /// <param name="localPort">Forwarded port to local device</param>
+        /// <param name="remoteUser">Remote user name</param>
+        /// <param name="remoteIP">Remote device IP</param>
+        /// <returns></returns>
+        private string CreateCommandString(string sshFormatString, string bindAddress, int remotePort, string localIP, int localPort, string remoteUser, string remoteIP)
+        {
+            return string.Format(sshFormatString, bindAddress, remotePort, localIP, localPort, remoteUser, remoteIP);
         }
 
         /// <summary>
