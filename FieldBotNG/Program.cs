@@ -2,6 +2,8 @@
 using Discord;
 using Discord.WebSocket;
 using System;
+using System.Diagnostics;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using TunnelingTools;
@@ -22,16 +24,18 @@ namespace FieldBotNG
 
         static async Task Main()
         {
+            DisplayHelloInfo();
+
             BashProcess.IsWSL = SettingsManager.AppConfig.WSL;
 
             _tunnel = new ReverseSSHTunnel(SettingsManager.AppConfig.RemoteHost, SettingsManager.AppConfig.LocalHost);
 
             (TunnelConnectionState, string) tunnelConnectionState = await _tunnel.CheckAndKillOldProcesses();
-            Console.WriteLine($"Current tunnel state is: {tunnelConnectionState.Item1}");
+            Console.WriteLine($"{DateTime.Now} -> Current tunnel state is: {tunnelConnectionState.Item1}");
             
             if (!string.IsNullOrWhiteSpace(tunnelConnectionState.Item2))
             {
-                Console.WriteLine($"Error while killing processes: {tunnelConnectionState.Item2}");
+                Console.WriteLine($"{DateTime.Now} -> Error while killing processes: {tunnelConnectionState.Item2}");
             }
 
             _client = new DiscordSocketClient();
@@ -44,6 +48,29 @@ namespace FieldBotNG
             await SetCurrentActivity(tunnelConnectionState.Item1);
 
             await Task.Delay(-1);
+        }
+
+        private static void DisplayHelloInfo()
+        {
+            string version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion;
+            if (string.IsNullOrEmpty(version))
+            {
+                version = @"ver. N/A";
+            }
+
+            string helloMessageLeftRightSeparators = "*********";
+            string helloMessageContent = $"THIS IS: FieldBotNG ({version}) Bot for Discord!";
+
+            StringBuilder innerSeparatorBuilder = new StringBuilder();
+            innerSeparatorBuilder.Append(helloMessageLeftRightSeparators);
+            innerSeparatorBuilder.Append(new string(' ', helloMessageContent.Length + 2));
+            innerSeparatorBuilder.Append(helloMessageLeftRightSeparators);
+
+            string helloMessage = $"{helloMessageLeftRightSeparators} {helloMessageContent} {helloMessageLeftRightSeparators}";
+
+            string edgeSeparatorsString = new string('*', helloMessage.Length);
+
+            Console.WriteLine($"\n{edgeSeparatorsString} \n{edgeSeparatorsString} \n{innerSeparatorBuilder} \n{helloMessage} \n{innerSeparatorBuilder} \n{edgeSeparatorsString} \n{edgeSeparatorsString}");
         }
 
         /// <summary>
@@ -216,7 +243,29 @@ namespace FieldBotNG
         /// <returns></returns>
         private static Task Log(LogMessage logMessage)
         {
-            Console.WriteLine(logMessage);
+            Console.WriteLine($"{DateTime.Now.Date} - {logMessage}");
+            
+
+            if (_client.ConnectionState == ConnectionState.Disconnected)
+            {
+                Console.WriteLine($"{DateTime.Now} -> Disconnected status detected - running new Task, to check is bot still working properly!");
+
+                Task.Run(async () =>
+                {
+                    await Task.Delay(10 * 1000);
+
+                    if (_client.ConnectionState == ConnectionState.Disconnected)
+                    {
+                        Console.WriteLine($"{DateTime.Now} -> Process is killing itself, due to Disconnected status has not changed, after 10 seconds delay.");
+                        Process.GetCurrentProcess().Kill();
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{DateTime.Now} -> OK! Bot is still working.");
+                    }
+                });
+            }
+
             return Task.CompletedTask;
         }
     }

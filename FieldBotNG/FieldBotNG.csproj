@@ -6,7 +6,7 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <Product>FieldBotNG</Product>
     <PackageId>FieldBotNG</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <Authors>KalikDev</Authors>
     <Company>KalikDev</Company>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
