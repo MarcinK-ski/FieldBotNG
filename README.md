@@ -6,7 +6,12 @@ Requirements:
   - SSH auth via private key. __For now, auth by password is not working__
   
 Optional:
-  - To connect to forwarded port using public address IP, set `GatewayPorts` to `yes` or `clientspecified` in file _sshd\_config_. In case `clientspecified`, bindAddress must be `0.0.0.0` or `\*`.
+  - To connect to forwarded port using public address IP, set `GatewayPorts` to `yes` or `clientspecified` in file _sshd\_config_. In case `clientspecified`, bindAddress must be `0.0.0.0` or `\*`. Example:
+``` Bash
+Match User username
+        GatewayPorts clientspecified
+        ClientAliveInterval 15
+```
   - If you are using __WSL__, set static property `IsWSL` on _true_ in __BashProcess__ class!!!
   
 3rd party libraries:
