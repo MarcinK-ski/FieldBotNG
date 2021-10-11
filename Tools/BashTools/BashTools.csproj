@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
@@ -7,7 +7,7 @@
     <Version>2.0.0</Version>
     <Company>KalikDev</Company>
     <Authors>KalikDev</Authors>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>GPL-3.0</PackageLicenseExpression>
     <Copyright>Marcin K-ski</Copyright>
     <Description>
 Library allows create, run and kill linux process on WSL or native LinuxOS.
