@@ -2,9 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-using TunnelingTools.Settings;
 
 namespace TunnelingTools
 {
@@ -43,13 +41,13 @@ namespace TunnelingTools
         /// </summary>
         public bool IsHostChanged { get; private set; }
 
-        private TunnelSettings _remoteHost;
+        private RemoteHost _remoteHost;
         /// <summary>
         /// Gets or sets Remote Host.
         /// Pay atention! It can't be changed, while tunnel is established!
         /// </summary>
         /// <exception cref="TunnelEstablishedException">Throws, when tunnel in this object is established</exception>
-        public TunnelSettings RemoteHost 
+        public RemoteHost RemoteHost 
         {
             get
             {
@@ -69,13 +67,13 @@ namespace TunnelingTools
             }
         }
 
-        private TunnelSettings _localSideHost;
+        private LocalHost _localSideHost;
         /// <summary>
         /// Gets or sets Local Side Host.
         /// Pay atention! It can't be changed, while tunnel is established!
         /// </summary>
         /// <exception cref="TunnelEstablishedException">Throws, when tunnel in this object is established</exception>
-        public TunnelSettings LocalSideHost
+        public LocalHost LocalSideHost
         {
             get
             {
@@ -105,7 +103,7 @@ namespace TunnelingTools
         /// </summary>
         /// <param name="remoteHost">Remote host - visible in internet by IP</param>
         /// <param name="localSideHost">Local side host - visible or invisible in internet by IP</param>
-        public ReverseSSHTunnel(TunnelSettings remoteHost, TunnelSettings localSideHost)
+        public ReverseSSHTunnel(RemoteHost remoteHost, LocalHost localSideHost)
         {
             _remoteHost = remoteHost;
             _localSideHost = localSideHost;
@@ -215,7 +213,7 @@ namespace TunnelingTools
         /// <returns>Connection state of tunnel and string with error message if occured (null if no error).</returns>
         /// <exception cref="BashProcessNotInintializedException">Throws when tunneling proces wasn't initialized</exception>
         /// <exception cref="BashProcessNotRunningException">Throws when tunneling proces is not running</exception>
-        public async Task<(TunnelConnectionState, string)> Stop()
+        public async Task<TunnelDestroyResponse> Stop()
         {
             if (_SSHProcess == null)
             {
@@ -237,7 +235,7 @@ namespace TunnelingTools
         /// Finds old processes used by last command and kill them
         /// </summary>
         /// <returns>Current tunnel connection type</returns>
-        public async Task<(TunnelConnectionState, string)> CheckAndKillOldProcesses()
+        public async Task<TunnelDestroyResponse> CheckAndKillOldProcesses()
         {
             try
             {
@@ -250,11 +248,13 @@ namespace TunnelingTools
                     }
                 }
 
-                return (await CheckConnectionType(), null);
+                TunnelConnectionState connectionState = await CheckConnectionType();
+
+                return new TunnelDestroyResponse(connectionState);
             }
             catch (TunnelEstablishedException ex)
             {
-                return (TunnelConnectionState.StoppedWithoutChecking, ex.Message);
+                return new TunnelDestroyResponse(TunnelConnectionState.StoppedWithoutChecking, ex.Message);
             }
         }
 
