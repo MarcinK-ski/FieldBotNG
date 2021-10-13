@@ -38,11 +38,6 @@ namespace FieldBotNG.Settings
         public bool IsDefault { get; set; }
 
         /// <summary>
-        /// Is RemoteHost/RemotePort displaying as "Anonymous connection" in discord bot Activity
-        /// </summary>
-        public bool IsAnonymous { get; set; }
-
-        /// <summary>
         /// List of allowed discord users (as IDs)
         /// </summary>
         public List<ulong> AllowedUsers { get; set; }
