@@ -14,6 +14,11 @@ namespace FieldBotNG.Settings
         public DiscordBotSettings DiscordBot { get; set; }
 
         /// <summary>
+        /// Discord user's ID, who has access to every connection
+        /// </summary>
+        public ulong AdminUID { get; set; }
+
+        /// <summary>
         /// Avaliable hosts
         /// </summary>
         public EndToEndHosts[] Hosts { get; set; }
@@ -29,6 +34,11 @@ namespace FieldBotNG.Settings
     /// </summary>
     public class EndToEndHosts
     {
+        /// <summary>
+        /// Custom name for this hosts pair
+        /// </summary>
+        public string CustomName { get; set; }
+
         /// <summary>
         /// Is this hosts pair set as default
         /// </summary>
