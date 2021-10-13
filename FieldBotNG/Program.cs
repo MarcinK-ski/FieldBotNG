@@ -26,6 +26,8 @@ namespace FieldBotNG
         /// </summary>
         private static List<ReverseSSHTunnel> _tunnels;
 
+        private static List<EndToEndHosts> _hostsInfo;
+
         private static Dictionary<TunnelConnectionState, int> _connectionsStateCounters;
 
         private static int _defeultDeviceIndex = -1;
@@ -46,6 +48,7 @@ namespace FieldBotNG
                 Console.WriteLine($"There are {hostsLength} hosts.");
 
                 _tunnels = new List<ReverseSSHTunnel>();
+                _hostsInfo = SettingsManager.AppConfig.Hosts.ToList();
                 _connectionsStateCounters = new Dictionary<TunnelConnectionState, int>();
 
                 foreach (var item in Enum.GetValues(typeof(TunnelConnectionState)).Cast<TunnelConnectionState>())
@@ -55,7 +58,7 @@ namespace FieldBotNG
 
                 for (int i = 0; i < hostsLength; i++)
                 {
-                    EndToEndHosts hostsInfo = SettingsManager.AppConfig.Hosts[i];
+                    EndToEndHosts hostsInfo = _hostsInfo[i];
 
                     Console.WriteLine($"Adding E2E info to list with index [{i}]: {hostsInfo.LocalHost} -> {hostsInfo.RemoteHost}");
 
@@ -149,64 +152,142 @@ namespace FieldBotNG
                                                                     // TODO: pamiętać o: allowedUsers oraz isAnonymous!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             string content = message.Content.Trim().ToLower();
 
-            // TODO: Przerobić na regex, bo jakoś trzeba rozróżniać, czy podany został!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             if (content.IsCommandMatchPattern(Commands.HELP, false)) // Help
             {
                 StringBuilder helpContent = new StringBuilder();
 
                 helpContent.Append($"Każda komenda musi zaczynać się znakiem: `{Commands.PREFIX}`");
                 helpContent.Append($"\nLista komend: ");
-                helpContent.Append($"\n    - `p` - otwiera połączenie z domyślnym urządzeniem (tu: rejestratorem), ");
-                helpContent.Append($"\n    - `p XYZ` - otwiera połączenie z urządzeniem o indeksie XYZ, ");
-                helpContent.Append($"\n    - `r` - zamyka połączenie z domyślnym urządzeniem (tu: rejestratorem), ");
-                helpContent.Append($"\n    - `r XYZ` - zamyka połączenie z urządzeniem o indeksie XYZ, ");
-                helpContent.Append($"\n    - `s` - sprawdza, czy połączenie z domyślnym urządzeniem (tu: rejestratorem) jest aktywne, ");
-                helpContent.Append($"\n    - `s XYZ` - sprawdza, czy połączenie z urządzeniem o indeksie XYZ jest aktywne, ");
-                helpContent.Append($"\n    - `w` - wyświetla wszystkie aktywne połączenia i indeksy urządzeń (te do których nie masz dostępu, zostaną \"zanonimizowane\"), ");
-                helpContent.Append($"\n    - `u` - wyświetla wszystkie dostępne urządzenia i ich indeks (te do których nie masz dostępu, zostaną \"zanonimizowane\"), ");
-                helpContent.Append($"\n    - `pomoc` - wyświetla pomoc, czyli tę listę komend.");
+                helpContent.Append($"\n    - `{Commands.CONNECT}` - otwiera połączenie z domyślnym urządzeniem (tu: rejestratorem), ");
+                helpContent.Append($"\n    - `{Commands.CONNECT} XYZ` - otwiera połączenie z urządzeniem o indeksie XYZ, ");
+                helpContent.Append($"\n    - `{Commands.DISCONNECT}` - zamyka połączenie z domyślnym urządzeniem (tu: rejestratorem), ");
+                helpContent.Append($"\n    - `{Commands.DISCONNECT} XYZ` - zamyka połączenie z urządzeniem o indeksie XYZ, ");
+                helpContent.Append($"\n    - `{Commands.CONNECTION_STATE}` - sprawdza, czy połączenie z domyślnym urządzeniem (tu: rejestratorem) jest aktywne, ");
+                helpContent.Append($"\n    - `{Commands.CONNECTION_STATE} XYZ` - sprawdza, czy połączenie z urządzeniem o indeksie XYZ jest aktywne, ");
+                helpContent.Append($"\n    - `{Commands.ALL_ACTIVE_CONNECTIONS}` - wyświetla wszystkie aktywne połączenia i indeksy urządzeń (te do których nie masz dostępu, zostaną \"zanonimizowane\"), ");
+                helpContent.Append($"\n    - `{Commands.ALL_AVALIABLE_CONNECTIONS}` - wyświetla wszystkie dostępne urządzenia i ich indeks (te do których nie masz dostępu, zostaną \"zanonimizowane\"), ");
+                helpContent.Append($"\n    - `{Commands.HELP}` - wyświetla pomoc, czyli tę listę komend.");
 
                 await message.Channel.SendMessageAsync(helpContent.ToString());
             }
-            else if (content.IsCommandMatchPattern(Commands.CONNECT, false))  // Connect - "Polacz"
-                                             // TODO: Uwzględnić AllowedUsers!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            else if (content.IsCommandMatchPattern(Commands.CONNECT, false))  // Connect to default device
             {
-                if (_tunnels[_defeultDeviceIndex].IsTunnelEstablished)
+                await ExecuteConnectCommand(_defeultDeviceIndex, message);
+            }
+            else if (content.IsCommandMatchPattern(Commands.DISCONNECT, false)) // Disconnect from default device
+            {
+                await ExecuteDisconnectCommand(_defeultDeviceIndex, message);
+            }
+            else if (content.IsCommandMatchPattern(Commands.CONNECTION_STATE, false)) // Connection status for default device
+            {
+                await ExecuteGetStatusCommand(_defeultDeviceIndex, message);
+            }
+            else if (content.IsCommandMatchPattern(Commands.ALL_ACTIVE_CONNECTIONS, false))
+            {
+                await message.Channel.SendMessageAsync("Odebrano komende statusu wszystkich aktywnych urządzeń");
+            }
+            else if (content.IsCommandMatchPattern(Commands.ALL_AVALIABLE_CONNECTIONS, false))
+            {
+                await message.Channel.SendMessageAsync("Odebrano komende statusu wszystkich dostępnych urządzeń");
+            }
+            else
+            {
+                await ExecuteDigitSuffixedCommand(content, message);
+            }
+
+            await UpdateCurrentActivity();
+        }
+
+        private static async Task ExecuteDigitSuffixedCommand(string command, SocketMessage message)
+        {
+            int? foundIndex;
+            bool isCommandMatch = false;
+
+            if (command.IsCommandMatchPattern(Commands.CONNECT, true, out foundIndex))  // Connect to selected device
+            {
+                isCommandMatch = true;
+
+                if (foundIndex != null)
                 {
-                    await message.Channel.SendMessageAsync("Tunel już istnieje. Stan możesz sprawdzić wpisując `!s`. \nJeśli po wpisaniu `!s`, pojawi się informacja o braku połączenia, spróbuj jeszcze raz.");
+                    int index = (int)foundIndex;
+                    await ExecuteConnectCommand(index, message);
+                }
+            }
+            else if (command.IsCommandMatchPattern(Commands.DISCONNECT, true, out foundIndex))
+            {
+                isCommandMatch = true;
+
+                if (foundIndex != null)
+                {
+                    int index = (int)foundIndex;
+                    await ExecuteDisconnectCommand(index, message);
+                }
+            }
+            else if (command.IsCommandMatchPattern(Commands.CONNECTION_STATE, true, out foundIndex))
+            {
+                isCommandMatch = true;
+
+                if (foundIndex != null)
+                {
+                    int index = (int)foundIndex;
+                    await ExecuteGetStatusCommand(index, message);
+                }
+            }
+
+            if (isCommandMatch && foundIndex == null)
+            {
+                await message.Channel.SendMessageAsync("__Wystąpił problem z odczytem indeksu urządzenia.__");
+            }
+        }
+
+        private static async Task ExecuteConnectCommand(int index, SocketMessage message)
+        {
+            ulong senderId = message.Author.Id;
+
+            if (!_hostsInfo[index].AllowedUsers.Contains(senderId))
+            {
+                await message.Channel.SendMessageAsync("**Nie masz uprawnień do tworzenia tego połączenia!**");
+            }
+            else if (_tunnels[index].IsTunnelEstablished)
+            {
+                await message.Channel.SendMessageAsync($"Tunel już istnieje. Stan możesz sprawdzić wpisując `{Commands.PREFIX}{Commands.CONNECTION_STATE}`. \nJeśli po wpisaniu `{Commands.PREFIX}{Commands.CONNECTION_STATE}`, pojawi się informacja o braku połączenia, spróbuj jeszcze raz.");
+            }
+            else
+            {
+                await message.Channel.SendMessageAsync("Próba utworzenia tunelu...");
+
+                bool isTunnelStarted = await _tunnels[index].Start();
+
+                if (isTunnelStarted)
+                {
+                    await message.Channel.SendMessageAsync("Połączenie zostało utworzone!");
                 }
                 else
                 {
-                    await message.Channel.SendMessageAsync("Próba utworzenia tunelu...");
-
-                    bool isTunnelStarted = await _tunnels[_defeultDeviceIndex].Start();
-
-                    if (isTunnelStarted)
-                    {
-                        await message.Channel.SendMessageAsync("Połączenie zostało utworzone!");
-                    }
-                    else
-                    {
-                        await message.Channel.SendMessageAsync("Wystąpił **problem** z utworzeniem połączenia zdalnego!");
-                    }
+                    await message.Channel.SendMessageAsync("Wystąpił **problem** z utworzeniem połączenia zdalnego!");
                 }
             }
-            else if (content.IsCommandMatchPattern(Commands.CONNECT, true))
+        }
+
+        private static async Task ExecuteDisconnectCommand(int index, SocketMessage message)
+        {
+            ulong senderId = message.Author.Id;
+
+            if (!_hostsInfo[index].AllowedUsers.Contains(senderId))
             {
-                await message.Channel.SendMessageAsync("Odebrano komende połącenia na konkretne urządzenie");
+                await message.Channel.SendMessageAsync("**Nie masz uprawnień do rozłączania tego połączenia!**");
             }
-            else if (content.IsCommandMatchPattern(Commands.DISCONNECT, false)) // Disconnect - "Rozlacz"
-                                            // TODO: Uwzględnić AllowedUsers!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            else
             {
                 await message.Channel.SendMessageAsync("Czekaj...");
 
-                TunnelConnectionState? tunnelConnectionState = await CheckConnection(_defeultDeviceIndex);
+                TunnelConnectionState? tunnelConnectionState = await CheckConnection(index);
 
-                if (_tunnels[_defeultDeviceIndex].IsTunnelEstablished)
+                if (_tunnels[index].IsTunnelEstablished)
                 {
                     try
                     {
-                        TunnelDestroyResponse stoppingResult = await _tunnels[_defeultDeviceIndex].Stop();
+                        TunnelDestroyResponse stoppingResult = await _tunnels[index].Stop();
                         tunnelConnectionState = stoppingResult.TunnelConnectionState;
 
                         if (tunnelConnectionState == TunnelConnectionState.NoConnection)
@@ -244,31 +325,23 @@ namespace FieldBotNG
                     await message.Channel.SendMessageAsync($"Wstępna analiza, wykazala że tunel nie został utworzony *(stan połączenia to: `{tunnelConnectionState}`)*. \nJeśli chcesz się połączyć, wpisz `!p`.");
                 }
             }
-            else if (content.IsCommandMatchPattern(Commands.DISCONNECT, true))
+        }
+
+        private static async Task ExecuteGetStatusCommand(int index, SocketMessage message)
+        {
+            ulong senderId = message.Author.Id;
+
+            if (!_hostsInfo[index].AllowedUsers.Contains(senderId))
             {
-                await message.Channel.SendMessageAsync("Odebrano komende reozłączenia konkretnego urządzenia");
+                await message.Channel.SendMessageAsync("**Nie masz uprawnień do sprawdzania statusu tego połączenia!**");
             }
-            else if (content.IsCommandMatchPattern(Commands.ALL_ACTIVE_CONNECTIONS, false))
-            {
-                await message.Channel.SendMessageAsync("Odebrano komende statusu wszystkich aktywnych urządzeń");
-            }
-            else if (content.IsCommandMatchPattern(Commands.ALL_AVALIABLE_CONNECTIONS, false))
-            {
-                await message.Channel.SendMessageAsync("Odebrano komende statusu wszystkich dostępnych urządzeń");
-            }
-            else if (content.IsCommandMatchPattern(Commands.CONNECTION_STATE, false)) // Connection status - "Status polaczenia"
+            else
             {
                 await message.Channel.SendMessageAsync("Sprawdzanie statusu połączenia...");
 
                 TunnelConnectionState? tunnelConnectionState = await CheckConnection(_defeultDeviceIndex);
                 await message.Channel.SendMessageAsync($"Aktualny status połączenia, to: *{tunnelConnectionState}*");
             }
-            else if (content.IsCommandMatchPattern(Commands.CONNECTION_STATE, true))
-            {
-                await message.Channel.SendMessageAsync("Odebrano komende statusu konkretnego urządzenia");
-            }
-
-            await UpdateCurrentActivity();
         }
 
         private static async Task CheckAndUpdateAllConnectionsState()
