@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Linq;
 using TunnelingTools;
+using FieldBotNG.Templates;
 
 namespace FieldBotNG
 {
@@ -125,7 +126,7 @@ namespace FieldBotNG
         /// <returns></returns>
         private static async Task MessageReceived(SocketMessage message)
         {
-            if (message.Content.StartsWith('!'))
+            if (message.Content.StartsWith(Commands.PREFIX))
             {
                 if (_defeultDeviceIndex == -1)
                 {
@@ -149,11 +150,11 @@ namespace FieldBotNG
             string content = message.Content.Trim().ToLower();
 
             // TODO: Przerobić na regex, bo jakoś trzeba rozróżniać, czy podany został!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            if (content.Contains("pomoc")) // Help
+            if (content.IsCommandMatchPattern(Commands.HELP, false)) // Help
             {
                 StringBuilder helpContent = new StringBuilder();
 
-                helpContent.Append("Każda komenda musi zaczynać się znakiem: `!` *(wykrzyknik)*");
+                helpContent.Append($"Każda komenda musi zaczynać się znakiem: `{Commands.PREFIX}`");
                 helpContent.Append($"\nLista komend: ");
                 helpContent.Append($"\n    - `p` - otwiera połączenie z domyślnym urządzeniem (tu: rejestratorem), ");
                 helpContent.Append($"\n    - `p XYZ` - otwiera połączenie z urządzeniem o indeksie XYZ, ");
@@ -167,7 +168,7 @@ namespace FieldBotNG
 
                 await message.Channel.SendMessageAsync(helpContent.ToString());
             }
-            else if (content.Contains('p'))  // Connect - "Polacz"
+            else if (content.IsCommandMatchPattern(Commands.CONNECT, false))  // Connect - "Polacz"
                                              // TODO: Uwzględnić AllowedUsers!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             {
                 if (_tunnels[_defeultDeviceIndex].IsTunnelEstablished)
@@ -190,7 +191,11 @@ namespace FieldBotNG
                     }
                 }
             }
-            else if (content.Contains('r')) // Disconnect - "Rozlacz"
+            else if (content.IsCommandMatchPattern(Commands.CONNECT, true))
+            {
+                await message.Channel.SendMessageAsync("Odebrano komende połącenia na konkretne urządzenie");
+            }
+            else if (content.IsCommandMatchPattern(Commands.DISCONNECT, false)) // Disconnect - "Rozlacz"
                                             // TODO: Uwzględnić AllowedUsers!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             {
                 await message.Channel.SendMessageAsync("Czekaj...");
@@ -239,12 +244,28 @@ namespace FieldBotNG
                     await message.Channel.SendMessageAsync($"Wstępna analiza, wykazala że tunel nie został utworzony *(stan połączenia to: `{tunnelConnectionState}`)*. \nJeśli chcesz się połączyć, wpisz `!p`.");
                 }
             }
-            else if (content.Contains('s')) // Connection status - "Status polaczenia"
+            else if (content.IsCommandMatchPattern(Commands.DISCONNECT, true))
+            {
+                await message.Channel.SendMessageAsync("Odebrano komende reozłączenia konkretnego urządzenia");
+            }
+            else if (content.IsCommandMatchPattern(Commands.ALL_ACTIVE_CONNECTIONS, false))
+            {
+                await message.Channel.SendMessageAsync("Odebrano komende statusu wszystkich aktywnych urządzeń");
+            }
+            else if (content.IsCommandMatchPattern(Commands.ALL_AVALIABLE_CONNECTIONS, false))
+            {
+                await message.Channel.SendMessageAsync("Odebrano komende statusu wszystkich dostępnych urządzeń");
+            }
+            else if (content.IsCommandMatchPattern(Commands.CONNECTION_STATE, false)) // Connection status - "Status polaczenia"
             {
                 await message.Channel.SendMessageAsync("Sprawdzanie statusu połączenia...");
 
                 TunnelConnectionState? tunnelConnectionState = await CheckConnection(_defeultDeviceIndex);
                 await message.Channel.SendMessageAsync($"Aktualny status połączenia, to: *{tunnelConnectionState}*");
+            }
+            else if (content.IsCommandMatchPattern(Commands.CONNECTION_STATE, true))
+            {
+                await message.Channel.SendMessageAsync("Odebrano komende statusu konkretnego urządzenia");
             }
 
             await UpdateCurrentActivity();
