@@ -48,9 +48,9 @@ namespace ReverseSSHTunnelExample
                 new ReverseSSHTunnel(SettingsManager.AppConfig.Hosts[hostIndex].RemoteHost, 
                                      SettingsManager.AppConfig.Hosts[hostIndex].LocalHost);
 
-            reverseSSHTunnel.Start();
+            await reverseSSHTunnel.Start();
 
-            TunnelConnectionState currentConnectionState = await reverseSSHTunnel.CheckConnectionType();
+            TunnelConnectionState currentConnectionState = await reverseSSHTunnel.CheckAndUpdateConnectionType();
             Console.WriteLine($"\nTunnel has been started. Current connection state => {currentConnectionState}");
 
             Console.WriteLine("\nClick any key, to stop tunnel...");
