@@ -6,6 +6,11 @@
     public enum TunnelConnectionState
     {
         /// <summary>
+        /// Instance was just initialised or something goes wrong 
+        /// </summary>
+        Unknown,
+
+        /// <summary>
         /// You can connect to port, using public address.
         /// </summary>
         RemoteConnection,
@@ -25,6 +30,11 @@
         /// <summary>
         /// Tunnel has been stopped, but without check, is server has still any connection on tunnel port.
         /// </summary>
-        StoppedWithoutChecking
+        StoppedWithoutChecking,
+
+        /// <summary>
+        /// Creating tunnel connection failed
+        /// </summary>
+        Failed
     }
 }

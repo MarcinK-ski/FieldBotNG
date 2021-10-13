@@ -99,6 +99,14 @@ namespace TunnelingTools
         public bool IsTunnelEstablished { get; private set; }
 
         /// <summary>
+        /// Last connection state for this instance
+        /// </summary>
+        /// <remarks>
+        /// To update state, use CheckConnectionType() method
+        /// </remarks>
+        public TunnelConnectionState LastTunnelConnectionState { get; protected set; }
+
+        /// <summary>
         /// Creates new ReverseSSHTunnel object
         /// </summary>
         /// <param name="remoteHost">Remote host - visible in internet by IP</param>
@@ -122,7 +130,7 @@ namespace TunnelingTools
         /// Specifying a remote bind_address will only succeed if the server's GatewayPorts option is enabled.
         /// </param>
         /// <returns></returns>
-        public bool Start(string bindAddress = DEFAULT_BIND_ADDRESS)
+        public async Task<bool> Start(string bindAddress = DEFAULT_BIND_ADDRESS)
         {
             if (bindAddress == DEFAULT_BIND_ADDRESS && !IsHostChanged)
             {
@@ -139,6 +147,16 @@ namespace TunnelingTools
             _SSHProcess.StandardErrorStringReceived += _SSHProcess_StandardOutputStringReceived;
 
             IsTunnelEstablished = _SSHProcess.RunNewProcess(true, true, true);
+
+            if (IsTunnelEstablished)
+            {
+                TunnelConnectionState currentConnectionState = await CheckAndUpdateConnectionType();
+            }
+            else
+            {
+                LastTunnelConnectionState = TunnelConnectionState.Failed;
+            }
+
             return IsTunnelEstablished;
         }
 
@@ -239,7 +257,7 @@ namespace TunnelingTools
         {
             try
             {
-                if (await CheckConnectionType() != TunnelConnectionState.NoConnection)
+                if (await CheckAndUpdateConnectionType() != TunnelConnectionState.NoConnection)
                 {
                     List<int> PIDs = BashProcess.FindPIDs(LastStartedCommandSSH ?? DefaultSSHCommand);
                     foreach (int pid in PIDs)
@@ -248,13 +266,14 @@ namespace TunnelingTools
                     }
                 }
 
-                TunnelConnectionState connectionState = await CheckConnectionType();
+                TunnelConnectionState connectionState = await CheckAndUpdateConnectionType();
 
                 return new TunnelDestroyResponse(connectionState);
             }
             catch (TunnelEstablishedException ex)
             {
-                return new TunnelDestroyResponse(TunnelConnectionState.StoppedWithoutChecking, ex.Message);
+                LastTunnelConnectionState = TunnelConnectionState.StoppedWithoutChecking;
+                return new TunnelDestroyResponse(LastTunnelConnectionState, ex.Message);
             }
         }
 
@@ -265,7 +284,7 @@ namespace TunnelingTools
         /// <returns>Tunnel connection state or throws TunnelUnknownConnectionStateException when netstat has no result.</returns>
         /// <exception cref="TunnelUnknownConnectionStateException">When netstat on remote device (command executed via SSH) returns null/whitespace (no netstatResult) 
         /// or when regexp match for netstat result, finds other address (than `0.0.0.0`/`127.0.0.1`) using tunnel's port.</exception>
-        public async Task<TunnelConnectionState> CheckConnectionType()
+        public async Task<TunnelConnectionState> CheckAndUpdateConnectionType()
         {
             string netstatLocalAddress = null;
 
@@ -285,20 +304,29 @@ namespace TunnelingTools
                     netstatLocalAddress = match.Groups[0].Value;
                 }
 
+                TunnelConnectionState tcs;
+
                 switch (netstatLocalAddress)
                 {
                     case "0.0.0.0":
                         IsTunnelEstablished = true;
-                        return TunnelConnectionState.RemoteConnection;
+                        tcs = TunnelConnectionState.RemoteConnection;
+                        break;
                     case "127.0.0.1":
                         IsTunnelEstablished = true;
-                        return TunnelConnectionState.LocalConnection;
+                        tcs = TunnelConnectionState.LocalConnection;
+                        break;
                     case null:  // No match for regexp pattern - it means, no connection established
                         IsTunnelEstablished = false;
-                        return TunnelConnectionState.NoConnection;
+                        tcs = TunnelConnectionState.NoConnection;
+                        break;
                     default:
+                        LastTunnelConnectionState = TunnelConnectionState.Unknown;
                         throw new TunnelUnknownConnectionStateException($"Unknown Tunnel Connection State: {netstatLocalAddress}");
                 }
+
+                LastTunnelConnectionState = tcs;
+                return LastTunnelConnectionState;
             }
 
             throw new TunnelUnknownConnectionStateException("Unknown Tunnel Connection State: no netstatResult");
