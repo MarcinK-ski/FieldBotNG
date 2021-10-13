@@ -26,16 +26,34 @@ namespace FieldBotNG
         /// </summary>
         private static List<ReverseSSHTunnel> _tunnels;
 
+        /// <summary>
+        /// Contains list with hosts info from config file
+        /// </summary>
         private static List<EndToEndHosts> _hostsInfo;
 
+        /// <summary>
+        /// Stores how many connections has given state
+        /// </summary>
         private static Dictionary<TunnelConnectionState, int> _connectionsStateCounters;
 
+        /// <summary>
+        /// Index of default connection (used without passing index with command)
+        /// </summary>
         private static int _defeultDeviceIndex = -1;
+
+        /// <summary>
+        /// Admin UID (from discord)
+        /// </summary>
+        /// <remarks>
+        /// Admin can manage connections even if doesn't have permission to given E2E
+        /// </remarks>
+        private static ulong _adminUID;
 
         static async Task Main()
         {
             DisplayHelloInfo();
 
+            _adminUID = SettingsManager.AppConfig.AdminUID;
             BashProcess.IsWSL = SettingsManager.AppConfig.WSL;
 
             int hostsLength = SettingsManager.AppConfig.Hosts.Length;
@@ -149,7 +167,6 @@ namespace FieldBotNG
         /// <returns></returns>
         private static async Task HandleMessage(SocketMessage message)
         {
-                                                                    // TODO: pamiętać o: allowedUsers oraz isAnonymous!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             string content = message.Content.Trim().ToLower();
 
             if (content.IsCommandMatchPattern(Commands.HELP, false)) // Help
@@ -182,13 +199,13 @@ namespace FieldBotNG
             {
                 await ExecuteGetStatusCommand(_defeultDeviceIndex, message);
             }
-            else if (content.IsCommandMatchPattern(Commands.ALL_ACTIVE_CONNECTIONS, false))
+            else if (content.IsCommandMatchPattern(Commands.ALL_ACTIVE_CONNECTIONS, false)) // Display all active connections
             {
-                await message.Channel.SendMessageAsync("Odebrano komende statusu wszystkich aktywnych urządzeń");
+                await ExecuteGetAllDevices(true, message);
             }
-            else if (content.IsCommandMatchPattern(Commands.ALL_AVALIABLE_CONNECTIONS, false))
+            else if (content.IsCommandMatchPattern(Commands.ALL_AVALIABLE_CONNECTIONS, false))  // Display all avaliable devices
             {
-                await message.Channel.SendMessageAsync("Odebrano komende statusu wszystkich dostępnych urządzeń");
+                await ExecuteGetAllDevices(false, message);
             }
             else
             {
@@ -244,7 +261,7 @@ namespace FieldBotNG
         {
             ulong senderId = message.Author.Id;
 
-            if (!_hostsInfo[index].AllowedUsers.Contains(senderId))
+            if (!IsUserPermittedToManageConnection(senderId, index))
             {
                 await message.Channel.SendMessageAsync("**Nie masz uprawnień do tworzenia tego połączenia!**");
             }
@@ -273,7 +290,7 @@ namespace FieldBotNG
         {
             ulong senderId = message.Author.Id;
 
-            if (!_hostsInfo[index].AllowedUsers.Contains(senderId))
+            if (!IsUserPermittedToManageConnection(senderId, index))
             {
                 await message.Channel.SendMessageAsync("**Nie masz uprawnień do rozłączania tego połączenia!**");
             }
@@ -331,7 +348,7 @@ namespace FieldBotNG
         {
             ulong senderId = message.Author.Id;
 
-            if (!_hostsInfo[index].AllowedUsers.Contains(senderId))
+            if (!IsUserPermittedToManageConnection(senderId, index))
             {
                 await message.Channel.SendMessageAsync("**Nie masz uprawnień do sprawdzania statusu tego połączenia!**");
             }
@@ -342,6 +359,85 @@ namespace FieldBotNG
                 TunnelConnectionState? tunnelConnectionState = await CheckConnection(_defeultDeviceIndex);
                 await message.Channel.SendMessageAsync($"Aktualny status połączenia, to: *{tunnelConnectionState}*");
             }
+        }
+
+        private static async Task ExecuteGetAllDevices(bool getOnlyWithActiveConnections, SocketMessage message)
+        {
+            StringBuilder messageToSend = new StringBuilder();
+            if (getOnlyWithActiveConnections)
+            {
+                await message.Channel.SendMessageAsync("Czekaj, trwa aktualizacja stanów...");
+                await CheckAndUpdateAllConnectionsState();
+                messageToSend.Append("Lista aktywnych połączeń:");
+            }
+            else
+            {
+                messageToSend.Append("Lista dostępnych urządzeń:");
+            }
+
+            ulong senderId = message.Author.Id;
+            bool isThereAnyConnectionOnList = false;
+
+            for (int i = 0; i < _tunnels.Count; i++)
+            {
+                ReverseSSHTunnel tunnel = _tunnels[i];
+                EndToEndHosts currentTunnelInfo = _hostsInfo[i];
+
+                if ( ! getOnlyWithActiveConnections 
+                    || tunnel.LastTunnelConnectionState == TunnelConnectionState.LocalConnection
+                    || tunnel.LastTunnelConnectionState == TunnelConnectionState.RemoteConnection)
+                {
+                    isThereAnyConnectionOnList = true;
+                    messageToSend.Append($"\n    - [{i}] ");
+
+                    if (IsUserPermittedToManageConnection(senderId, i))
+                    {
+                        messageToSend.Append($"**{currentTunnelInfo.CustomName}**:");
+                        messageToSend.Append($"\n        + `{tunnel.LocalSideHost.GetPortAndIP()}` -> `{tunnel.RemoteHost.GetPortAndIP()}`");
+                        messageToSend.Append($"\n        + Ostatni znany stan: `{tunnel.LastTunnelConnectionState}`");
+                    }
+                    else
+                    {
+                        messageToSend.Append("||Nie możesz zarządzać tym połączeniem||");
+                    }
+
+                    if (i == _defeultDeviceIndex)
+                    {
+                        messageToSend.Append("\n        + *(domyślne)*");
+                    }
+                }
+            }
+
+            if (isThereAnyConnectionOnList)
+            {
+                await message.Channel.SendMessageAsync("Wiadomosć zostanie wysłana na czacie prywatnym!");
+                SendPrivatedMessageWithDevicesInfo(message.Author, messageToSend.ToString());
+            }
+            else
+            {
+                string listName = getOnlyWithActiveConnections ? "Aktywne połączenia" : "Dostępne urządzenia";
+                await message.Channel.SendMessageAsync($"Wybrana lista ({listName}) jest pusta.");
+            }
+
+        }
+
+        private static async void SendPrivatedMessageWithDevicesInfo(SocketUser user, string message)
+        {
+            int delayTimeSeconds = 30;
+
+            var delayInfoForUser = await user.SendMessageAsync($"__Poniższa wiadomość zniknie za {delayTimeSeconds} sekund!__ *( chyba że coś pójdzie nie tak :sweat_smile: )*");
+            await Task.Delay(600);
+
+            var messageForUser = await user.SendMessageAsync(message.ToString());
+            await Task.Delay(delayTimeSeconds * 1000);
+            
+            await delayInfoForUser.DeleteAsync();
+            await messageForUser.DeleteAsync();
+        }
+
+        private static bool IsUserPermittedToManageConnection(ulong senderId, int e2eIndex)
+        {
+            return senderId == _adminUID || _hostsInfo[e2eIndex].AllowedUsers.Contains(senderId);
         }
 
         private static async Task CheckAndUpdateAllConnectionsState()
