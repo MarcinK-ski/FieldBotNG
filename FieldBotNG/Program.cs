@@ -1,11 +1,14 @@
 ﻿using BashTools;
 using Discord;
 using Discord.WebSocket;
+using FieldBotNG.Settings;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Linq;
 using TunnelingTools;
 
 namespace FieldBotNG
@@ -20,7 +23,11 @@ namespace FieldBotNG
         /// <summary>
         /// Reverse SSH tunnel object
         /// </summary>
-        private static ReverseSSHTunnel _tunnel;
+        private static List<ReverseSSHTunnel> _tunnels;
+
+        private static Dictionary<TunnelConnectionState, int> _connectionsStateCounters;
+
+        private static int _defeultDeviceIndex = -1;
 
         static async Task Main()
         {
@@ -28,15 +35,53 @@ namespace FieldBotNG
 
             BashProcess.IsWSL = SettingsManager.AppConfig.WSL;
 
-            _tunnel = new ReverseSSHTunnel(SettingsManager.AppConfig.RemoteHost, SettingsManager.AppConfig.LocalHost);
-
-            (TunnelConnectionState, string) tunnelConnectionState = await _tunnel.CheckAndKillOldProcesses();
-            Console.WriteLine($"{DateTime.Now} -> Current tunnel state is: {tunnelConnectionState.Item1}");
-            
-            if (!string.IsNullOrWhiteSpace(tunnelConnectionState.Item2))
+            int hostsLength = SettingsManager.AppConfig.Hosts.Length;
+            if (hostsLength == 0)
             {
-                Console.WriteLine($"{DateTime.Now} -> Error while killing processes: {tunnelConnectionState.Item2}");
+                Console.WriteLine("ERROR: There's no hosts in config file!!!");
             }
+            else
+            {
+                Console.WriteLine($"There are {hostsLength} hosts.");
+
+                _tunnels = new List<ReverseSSHTunnel>();
+                _connectionsStateCounters = new Dictionary<TunnelConnectionState, int>();
+
+                foreach (var item in Enum.GetValues(typeof(TunnelConnectionState)).Cast<TunnelConnectionState>())
+                {
+                    _connectionsStateCounters.TryAdd(item, 0);
+                }
+
+                for (int i = 0; i < hostsLength; i++)
+                {
+                    EndToEndHosts hostsInfo = SettingsManager.AppConfig.Hosts[i];
+
+                    Console.WriteLine($"Adding E2E info to list with index [{i}]: {hostsInfo.LocalHost} -> {hostsInfo.RemoteHost}");
+
+                    if (_defeultDeviceIndex == -1 && hostsInfo.IsDefault)
+                    {
+                        _defeultDeviceIndex = i;
+                    }
+
+                    ReverseSSHTunnel tempTunnel = new ReverseSSHTunnel(hostsInfo.RemoteHost, hostsInfo.LocalHost);
+                    TunnelDestroyResponse tunnelConnectionState = await tempTunnel.CheckAndKillOldProcesses();
+                    Console.WriteLine($"{DateTime.Now} -> Current tunnel state is: {tunnelConnectionState.TunnelConnectionState}");
+
+                    if (!string.IsNullOrWhiteSpace(tunnelConnectionState.ExceptionMessage))
+                    {
+                        Console.WriteLine($"{DateTime.Now} -> Error while killing processes: {tunnelConnectionState.ExceptionMessage}");
+                    }
+
+                    _tunnels.Add(tempTunnel);
+                    _connectionsStateCounters[tunnelConnectionState.TunnelConnectionState]++;
+                }
+
+                if (_defeultDeviceIndex == -1)
+                {
+                    _defeultDeviceIndex = 0;
+                }
+            }
+
 
             _client = new DiscordSocketClient();
 
@@ -45,7 +90,7 @@ namespace FieldBotNG
 
             await _client.LoginAsync(TokenType.Bot, SettingsManager.AppConfig.DiscordBot.Token);
             await _client.StartAsync();
-            await SetCurrentActivity(tunnelConnectionState.Item1);
+            await UpdateCurrentActivity();
 
             await Task.Delay(-1);
         }
@@ -82,7 +127,11 @@ namespace FieldBotNG
         {
             if (message.Content.StartsWith('!'))
             {
-                if (SettingsManager.AppConfig.DiscordBot.AllowedChannels.Contains(message.Channel.Id))
+                if (_defeultDeviceIndex == -1)
+                {
+                    await message.Channel.SendMessageAsync("W konfiguracji aplikacji nie ma podanych hostów typu E2E!");
+                }
+                else if (SettingsManager.AppConfig.DiscordBot.AllowedChannels.Contains(message.Channel.Id))
                 {
                     await HandleMessage(message);
                 }
@@ -96,24 +145,32 @@ namespace FieldBotNG
         /// <returns></returns>
         private static async Task HandleMessage(SocketMessage message)
         {
-            string content = message.Content.ToLower();
+                                                                    // TODO: pamiętać o: allowedUsers oraz isAnonymous!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            string content = message.Content.Trim().ToLower();
 
+            // TODO: Przerobić na regex, bo jakoś trzeba rozróżniać, czy podany został!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             if (content.Contains("pomoc")) // Help
             {
                 StringBuilder helpContent = new StringBuilder();
 
                 helpContent.Append("Każda komenda musi zaczynać się znakiem: `!` *(wykrzyknik)*");
                 helpContent.Append($"\nLista komend: ");
-                helpContent.Append($"\n    - `p` - otwiera połączenie z rejestratorem, ");
-                helpContent.Append($"\n    - `r` - zamyka połączenie z rejestratorem,");
-                helpContent.Append($"\n    - `s` - sprawdza, czy połączenie z rejestratorem jest aktywne,");
+                helpContent.Append($"\n    - `p` - otwiera połączenie z domyślnym urządzeniem (tu: rejestratorem), ");
+                helpContent.Append($"\n    - `p XYZ` - otwiera połączenie z urządzeniem o indeksie XYZ, ");
+                helpContent.Append($"\n    - `r` - zamyka połączenie z domyślnym urządzeniem (tu: rejestratorem), ");
+                helpContent.Append($"\n    - `r XYZ` - zamyka połączenie z urządzeniem o indeksie XYZ, ");
+                helpContent.Append($"\n    - `s` - sprawdza, czy połączenie z domyślnym urządzeniem (tu: rejestratorem) jest aktywne, ");
+                helpContent.Append($"\n    - `s XYZ` - sprawdza, czy połączenie z urządzeniem o indeksie XYZ jest aktywne, ");
+                helpContent.Append($"\n    - `w` - wyświetla wszystkie aktywne połączenia i indeksy urządzeń (te do których nie masz dostępu, zostaną \"zanonimizowane\"), ");
+                helpContent.Append($"\n    - `u` - wyświetla wszystkie dostępne urządzenia i ich indeks (te do których nie masz dostępu, zostaną \"zanonimizowane\"), ");
                 helpContent.Append($"\n    - `pomoc` - wyświetla pomoc, czyli tę listę komend.");
 
                 await message.Channel.SendMessageAsync(helpContent.ToString());
             }
             else if (content.Contains('p'))  // Connect - "Polacz"
+                                             // TODO: Uwzględnić AllowedUsers!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             {
-                if (_tunnel.IsTunnelEstablished)
+                if (_tunnels[_defeultDeviceIndex].IsTunnelEstablished)
                 {
                     await message.Channel.SendMessageAsync("Tunel już istnieje. Stan możesz sprawdzić wpisując `!s`. \nJeśli po wpisaniu `!s`, pojawi się informacja o braku połączenia, spróbuj jeszcze raz.");
                 }
@@ -121,7 +178,7 @@ namespace FieldBotNG
                 {
                     await message.Channel.SendMessageAsync("Próba utworzenia tunelu...");
 
-                    bool isTunnelStarted = _tunnel.Start();
+                    bool isTunnelStarted = await _tunnels[_defeultDeviceIndex].Start();
 
                     if (isTunnelStarted)
                     {
@@ -134,17 +191,18 @@ namespace FieldBotNG
                 }
             }
             else if (content.Contains('r')) // Disconnect - "Rozlacz"
+                                            // TODO: Uwzględnić AllowedUsers!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             {
                 await message.Channel.SendMessageAsync("Czekaj...");
 
-                TunnelConnectionState? tunnelConnectionState = await CheckConnection();
+                TunnelConnectionState? tunnelConnectionState = await CheckConnection(_defeultDeviceIndex);
 
-                if (_tunnel.IsTunnelEstablished)
+                if (_tunnels[_defeultDeviceIndex].IsTunnelEstablished)
                 {
                     try
                     {
-                        (TunnelConnectionState, string) stoppingResult = await _tunnel.Stop();
-                        tunnelConnectionState = stoppingResult.Item1;
+                        TunnelDestroyResponse stoppingResult = await _tunnels[_defeultDeviceIndex].Stop();
+                        tunnelConnectionState = stoppingResult.TunnelConnectionState;
 
                         if (tunnelConnectionState == TunnelConnectionState.NoConnection)
                         {
@@ -152,7 +210,7 @@ namespace FieldBotNG
                         }
                         else if (tunnelConnectionState == TunnelConnectionState.StoppedWithoutChecking)
                         {
-                            await message.Channel.SendMessageAsync($"Rozłączono, ale nie wystąpiło sprawdzenie istniejących połączeń. Treść błędu: {stoppingResult.Item2}");
+                            await message.Channel.SendMessageAsync($"Rozłączono, ale nie wystąpiło sprawdzenie istniejących połączeń. Treść błędu: {stoppingResult.ExceptionMessage}");
                         }
                         else
                         {
@@ -185,52 +243,112 @@ namespace FieldBotNG
             {
                 await message.Channel.SendMessageAsync("Sprawdzanie statusu połączenia...");
 
-                TunnelConnectionState? tunnelConnectionState = await CheckConnection();
+                TunnelConnectionState? tunnelConnectionState = await CheckConnection(_defeultDeviceIndex);
                 await message.Channel.SendMessageAsync($"Aktualny status połączenia, to: *{tunnelConnectionState}*");
             }
 
-            await SetCurrentActivity(await CheckConnection());
+            await UpdateCurrentActivity();
+        }
+
+        private static async Task CheckAndUpdateAllConnectionsState()
+        {
+            for (int i = 0; i < _tunnels.Count; i++)
+            {
+                await CheckConnection(i);
+            }
         }
 
         /// <summary>
         /// Checks current connection with TunnelUnknownConnectionStateException catching 
         /// </summary>
         /// <returns></returns>
-        private static async Task<TunnelConnectionState?> CheckConnection()
+        private static async Task<TunnelConnectionState?> CheckConnection(int index)
         {
+            if (index < 0)
+            {
+                index = _defeultDeviceIndex;
+            }
+
             try
             {
-                return await _tunnel.CheckConnectionType();
+                ReverseSSHTunnel tunnel = _tunnels[index];
+
+                TunnelConnectionState lastConnetcionState = tunnel.LastTunnelConnectionState;
+                TunnelConnectionState currentConnectionState = await tunnel.CheckAndUpdateConnectionType();
+
+                if (currentConnectionState != lastConnetcionState)
+                {
+                    if (_connectionsStateCounters[lastConnetcionState] > 0)
+                    {
+                        _connectionsStateCounters[lastConnetcionState]--;
+                    }
+
+                    _connectionsStateCounters[currentConnectionState]++;
+                }
+
+                return currentConnectionState;
             }
             catch (TunnelUnknownConnectionStateException ex)
             {
                 Console.WriteLine($"Problem while checking connection type: {ex.Message}");
-                return null;
+                return TunnelConnectionState.Unknown;
             }
         }
 
 
         /// <summary>
-        /// 
+        /// Sets text for discord's "Activity"
         /// </summary>
-        /// <param name="item1"></param>
-        /// <returns></returns>
-        private static async Task SetCurrentActivity(TunnelConnectionState? tunnelConnectionState)
+        /// <remarks>
+        /// Activity will contain "NoConnection" when any tunnel is opened. Other states will be listed with counter of them.
+        /// </remarks>
+        private static async Task UpdateCurrentActivity()
         {
             Game game;
-            switch (tunnelConnectionState)
+
+            if (_connectionsStateCounters?.Count == 0)
             {
-                case TunnelConnectionState.RemoteConnection:
-                case TunnelConnectionState.LocalConnection:
-                    game = new Game($"{tunnelConnectionState} in {SettingsManager.AppConfig.RemoteHost.GetPortAndIP()}", ActivityType.Playing);
-                    break;
-                case TunnelConnectionState.NoConnection:
-                case TunnelConnectionState.StoppedWithoutChecking:
-                    game = new Game(tunnelConnectionState.ToString(), ActivityType.Listening);
-                    break;
-                default:
-                    game = null;
-                    break;
+                game = new Game("Błąd konfiguracji! Brak hostów E2E!", ActivityType.CustomStatus);
+            }
+            else
+            {
+                TunnelConnectionState tunnelConnectionState = _tunnels[_defeultDeviceIndex].LastTunnelConnectionState;
+
+                switch (tunnelConnectionState)
+                {
+                    case TunnelConnectionState.RemoteConnection:
+                    case TunnelConnectionState.LocalConnection:
+                        game = new Game($"{tunnelConnectionState} in {_tunnels[_defeultDeviceIndex].RemoteHost.GetPortAndIP()}", ActivityType.Playing);
+                        break;
+                    case TunnelConnectionState.NoConnection:
+                    case TunnelConnectionState.StoppedWithoutChecking:
+                        game = new Game(tunnelConnectionState.ToString(), ActivityType.Listening);
+                        break;
+                    default:
+                        game = null;
+                        break;
+                }
+
+                // todo: use field: _connectionsStateCounters -> stringi mają być typu "X połączeń typu Remote, X połączeń typu local", a jeśli nie ma żadnego, to po prostu jedno NoConnection
+                /*foreach (var tunnel in _tunnels)
+                {
+                    TunnelConnectionState tunnelConnectionState = tunnel.LastTunnelConnectionState;
+
+                    switch (tunnelConnectionState)
+                    {
+                        case TunnelConnectionState.RemoteConnection:
+                        case TunnelConnectionState.LocalConnection:
+                            game = new Game($"{tunnelConnectionState} in {tunnel.RemoteHost.GetPortAndIP()}", ActivityType.Playing);
+                            break;
+                        case TunnelConnectionState.NoConnection:
+                        case TunnelConnectionState.StoppedWithoutChecking:
+                            game = new Game(tunnelConnectionState.ToString(), ActivityType.Listening);
+                            break;
+                        default:
+                            game = null;
+                            break;
+                    } 
+                }*/
             }
 
             await _client.SetActivityAsync(game);
