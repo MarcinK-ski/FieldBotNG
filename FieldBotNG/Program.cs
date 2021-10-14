@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using TunnelingTools;
 using FieldBotNG.Templates;
+using Discord.Rest;
 
 namespace FieldBotNG
 {
@@ -69,7 +70,7 @@ namespace FieldBotNG
                 _hostsInfo = SettingsManager.AppConfig.Hosts.ToList();
                 _connectionsStateCounters = new Dictionary<TunnelConnectionState, int>();
 
-                foreach (var item in Enum.GetValues(typeof(TunnelConnectionState)).Cast<TunnelConnectionState>())
+                foreach (TunnelConnectionState item in Enum.GetValues(typeof(TunnelConnectionState)).Cast<TunnelConnectionState>())
                 {
                     _connectionsStateCounters.TryAdd(item, 0);
                 }
@@ -229,7 +230,9 @@ namespace FieldBotNG
                 return;
             }
 
-            await UpdateCurrentActivity(!ignoreCheckingConnectionInActivityUpdate);
+            RestUserMessage messageAboutUpdating = await message.Channel.SendMessageAsync("*(Trwa aktualizacja statusów, kolejne komendy zostaną przetworzone po jej zakończeniu.)*");
+            await UpdateCurrentActivity(!ignoreCheckingConnectionInActivityUpdate);     // Activity (and connections) data update
+            await messageAboutUpdating.DeleteAsync();
         }
 
         private static async Task ExecuteDigitSuffixedCommand(string command, SocketMessage message)
@@ -442,10 +445,10 @@ namespace FieldBotNG
         {
             int delayTimeSeconds = 30;
 
-            var delayInfoForUser = await user.SendMessageAsync($"__Poniższa wiadomość zniknie za {delayTimeSeconds} sekund!__ *( chyba że coś pójdzie nie tak :sweat_smile: )*");
+            IUserMessage delayInfoForUser = await user.SendMessageAsync($"__Poniższa wiadomość zniknie za {delayTimeSeconds} sekund!__ *( chyba że coś pójdzie nie tak :sweat_smile: )*");
             await Task.Delay(600);
 
-            var messageForUser = await user.SendMessageAsync(message.ToString());
+            IUserMessage messageForUser = await user.SendMessageAsync(message.ToString());
             await Task.Delay(delayTimeSeconds * 1000);
             
             await delayInfoForUser.DeleteAsync();
