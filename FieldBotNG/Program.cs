@@ -70,10 +70,7 @@ namespace FieldBotNG
                 _hostsInfo = SettingsManager.AppConfig.Hosts.ToList();
                 _connectionsStateCounters = new Dictionary<TunnelConnectionState, int>();
 
-                foreach (TunnelConnectionState item in Enum.GetValues(typeof(TunnelConnectionState)).Cast<TunnelConnectionState>())
-                {
-                    _connectionsStateCounters.TryAdd(item, 0);
-                }
+                ResetStates();
 
                 for (int i = 0; i < hostsLength; i++)
                 {
@@ -488,7 +485,11 @@ namespace FieldBotNG
                 if (currentConnectionState != lastConnetcionState)
                 {
                     _connectionsStateCounters[currentConnectionState]++;
-                    _connectionsStateCounters[lastConnetcionState]--;
+                    
+                    if (_connectionsStateCounters[lastConnetcionState] > 0)
+                    {
+                        _connectionsStateCounters[lastConnetcionState]--;
+                    }
                 }
 
                 return currentConnectionState;
@@ -580,12 +581,28 @@ namespace FieldBotNG
                     else
                     {
                         Console.WriteLine($"{DateTime.Now} -> OK! Bot is still working.");
+                        ResetStates();
                         await UpdateCurrentActivity(true);
                     }
                 });
             }
 
             return Task.CompletedTask;
+        }
+
+        private static void ResetStates()
+        {
+            foreach (TunnelConnectionState item in Enum.GetValues(typeof(TunnelConnectionState)).Cast<TunnelConnectionState>())
+            {
+                if (_connectionsStateCounters.ContainsKey(item))
+                {
+                    _connectionsStateCounters[item] = 0;
+                }
+                else
+                {
+                    _connectionsStateCounters.Add(item, 0);
+                }
+            }
         }
 
         private static async Task Kill(string dueTo)
