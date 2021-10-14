@@ -89,7 +89,7 @@ namespace FieldBotNG
 
                     ReverseSSHTunnel tempTunnel = new ReverseSSHTunnel(hostsInfo.RemoteHost, hostsInfo.LocalHost);
                     TunnelDestroyResponse tunnelConnectionState = await tempTunnel.CheckAndKillOldProcesses();
-                    Console.WriteLine($"{DateTime.Now} -> Current tunnel state is: {tunnelConnectionState.TunnelConnectionState}");
+                    Console.WriteLine($"{DateTime.Now} -> Current tunnel state is: {tunnelConnectionState.TunnelConnectionState}, Last: {tempTunnel.LastStartedCommandSSH}, Previous: {tempTunnel.PreviousTunnelConnectionState}");
 
                     if (!string.IsNullOrWhiteSpace(tunnelConnectionState.ExceptionMessage))
                     {
@@ -463,6 +463,7 @@ namespace FieldBotNG
         {
             await _client.SetGameAsync("Updating states...");
 
+            ResetStates();
             for (int i = 0; i < _tunnels.Count; i++)
             {
                 await CheckConnection(i);
@@ -479,18 +480,9 @@ namespace FieldBotNG
             {
                 ReverseSSHTunnel tunnel = _tunnels[index];
 
-                TunnelConnectionState lastConnetcionState = tunnel.PreviousTunnelConnectionState;
                 TunnelConnectionState currentConnectionState = await tunnel.CheckAndUpdateConnectionType();
-
-                if (currentConnectionState != lastConnetcionState)
-                {
-                    _connectionsStateCounters[currentConnectionState]++;
-                    
-                    if (_connectionsStateCounters[lastConnetcionState] > 0)
-                    {
-                        _connectionsStateCounters[lastConnetcionState]--;
-                    }
-                }
+                
+                _connectionsStateCounters[currentConnectionState]++;
 
                 return currentConnectionState;
             }

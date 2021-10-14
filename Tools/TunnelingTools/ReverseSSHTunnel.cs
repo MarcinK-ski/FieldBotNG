@@ -278,7 +278,9 @@ namespace TunnelingTools
         {
             try
             {
-                if (await CheckAndUpdateConnectionType(false) != TunnelConnectionState.NoConnection)
+                TunnelConnectionState connectionState = await CheckAndUpdateConnectionType();
+
+                if (connectionState != TunnelConnectionState.NoConnection)
                 {
                     List<int> PIDs = BashProcess.FindPIDs(LastStartedCommandSSH ?? DefaultSSHCommand);
                     foreach (int pid in PIDs)
@@ -287,9 +289,8 @@ namespace TunnelingTools
                     }
 
                     await Task.Delay(250);  // Delay to be sure, every connection on server side has been destroyed
+                    connectionState = await CheckAndUpdateConnectionType();
                 }
-
-                TunnelConnectionState connectionState = await CheckAndUpdateConnectionType();
 
                 return new TunnelDestroyResponse(connectionState);
             }
@@ -307,12 +308,9 @@ namespace TunnelingTools
         /// <returns>Tunnel connection state or throws TunnelUnknownConnectionStateException when netstat has no result.</returns>
         /// <exception cref="TunnelUnknownConnectionStateException">When netstat on remote device (command executed via SSH) returns null/whitespace (no netstatResult) 
         /// or when regexp match for netstat result, finds other address (than `0.0.0.0`/`127.0.0.1`) using tunnel's port.</exception>
-        public async Task<TunnelConnectionState> CheckAndUpdateConnectionType(bool saveCurrentStateAsPrevious = true)
+        public async Task<TunnelConnectionState> CheckAndUpdateConnectionType()
         {
-            if (saveCurrentStateAsPrevious)
-            {
-                PreviousTunnelConnectionState = LastTunnelConnectionState;
-            }
+            PreviousTunnelConnectionState = LastTunnelConnectionState;
 
             string netstatLocalAddress = null;
 
