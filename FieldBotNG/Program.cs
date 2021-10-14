@@ -224,6 +224,8 @@ namespace FieldBotNG
             {
                 if (message.Author.Id == _adminUID)
                 {
+                    // Deleting this massage require "Messages managing" right for bot! In other way, exception will be thrown and nothing happens
+                    await message.DeleteAsync();
                     await Kill($"Admin ({_adminUID}) request");
                 }
 
