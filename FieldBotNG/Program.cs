@@ -224,7 +224,7 @@ namespace FieldBotNG
             {
                 if (message.Author.Id == _adminUID)
                 {
-                    Process.GetCurrentProcess().Kill();
+                    await Kill($"Admin ({_adminUID}) request");
                 }
 
                 return;
@@ -577,8 +577,7 @@ namespace FieldBotNG
 
                     if (_client.ConnectionState == ConnectionState.Disconnected)
                     {
-                        Console.WriteLine($"{DateTime.Now} -> Process is killing itself, due to Disconnected status has not changed, after 10 seconds delay.");
-                        Process.GetCurrentProcess().Kill();
+                        await Kill("Disconnected status has not changed, after 10 seconds delay");
                     }
                     else
                     {
@@ -589,6 +588,15 @@ namespace FieldBotNG
             }
 
             return Task.CompletedTask;
+        }
+
+        private static async Task Kill(string dueTo)
+        {
+            Console.WriteLine($"{DateTime.Now} -> Process is killing itself, due to {dueTo}.");
+            await _client.SetActivityAsync(new Game("Restart!", ActivityType.Watching));
+
+            await Task.Delay(100);
+            Process.GetCurrentProcess().Kill();
         }
     }
 }
