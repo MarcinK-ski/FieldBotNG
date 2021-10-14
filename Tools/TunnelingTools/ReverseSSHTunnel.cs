@@ -99,6 +99,14 @@ namespace TunnelingTools
         public bool IsTunnelEstablished { get; private set; }
 
         /// <summary>
+        /// Previous (one before last) connection state for this instance
+        /// </summary>
+        /// <remarks>
+        /// To update state, use CheckConnectionType() method
+        /// </remarks>
+        public TunnelConnectionState PreviousTunnelConnectionState { get; protected set; }
+
+        /// <summary>
         /// Last connection state for this instance
         /// </summary>
         /// <remarks>
@@ -132,6 +140,8 @@ namespace TunnelingTools
         /// <returns></returns>
         public async Task<bool> Start(string bindAddress = DEFAULT_BIND_ADDRESS)
         {
+            PreviousTunnelConnectionState = LastTunnelConnectionState;
+
             if (bindAddress == DEFAULT_BIND_ADDRESS && !IsHostChanged)
             {
                 LastStartedCommandSSH = DefaultSSHCommand;
@@ -255,6 +265,8 @@ namespace TunnelingTools
         /// <returns>Current tunnel connection type</returns>
         public async Task<TunnelDestroyResponse> CheckAndKillOldProcesses()
         {
+            PreviousTunnelConnectionState = LastTunnelConnectionState;
+
             try
             {
                 if (await CheckAndUpdateConnectionType() != TunnelConnectionState.NoConnection)
@@ -286,6 +298,8 @@ namespace TunnelingTools
         /// or when regexp match for netstat result, finds other address (than `0.0.0.0`/`127.0.0.1`) using tunnel's port.</exception>
         public async Task<TunnelConnectionState> CheckAndUpdateConnectionType()
         {
+            PreviousTunnelConnectionState = LastTunnelConnectionState;
+
             string netstatLocalAddress = null;
 
             BashProcess netstatProcess = new BashProcess($"ssh {RemoteHost.User}@{RemoteHost.IP} netstat -tlnp")
@@ -304,28 +318,25 @@ namespace TunnelingTools
                     netstatLocalAddress = match.Groups[0].Value;
                 }
 
-                TunnelConnectionState tcs;
-
                 switch (netstatLocalAddress)
                 {
                     case "0.0.0.0":
                         IsTunnelEstablished = true;
-                        tcs = TunnelConnectionState.RemoteConnection;
+                        LastTunnelConnectionState = TunnelConnectionState.RemoteConnection;
                         break;
                     case "127.0.0.1":
                         IsTunnelEstablished = true;
-                        tcs = TunnelConnectionState.LocalConnection;
+                        LastTunnelConnectionState = TunnelConnectionState.LocalConnection;
                         break;
                     case null:  // No match for regexp pattern - it means, no connection established
                         IsTunnelEstablished = false;
-                        tcs = TunnelConnectionState.NoConnection;
+                        LastTunnelConnectionState = TunnelConnectionState.NoConnection;
                         break;
                     default:
                         LastTunnelConnectionState = TunnelConnectionState.Unknown;
                         throw new TunnelUnknownConnectionStateException($"Unknown Tunnel Connection State: {netstatLocalAddress}");
                 }
 
-                LastTunnelConnectionState = tcs;
                 return LastTunnelConnectionState;
             }
 
