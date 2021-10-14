@@ -1,6 +1,7 @@
 ﻿using BashTools;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
@@ -321,7 +322,10 @@ namespace TunnelingTools
 
             if (!string.IsNullOrWhiteSpace(netstatResult))
             {
-                Regex regex = new Regex($@"[0-255].[0-255].[0-255].[0-255](?=:{RemoteHost.Port})");
+                StringBuilder regexPatternBuilder = new StringBuilder(@"(((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9]){1})(?=:");
+                regexPatternBuilder.Append($@"{RemoteHost.Port}\s)");
+
+                Regex regex = new Regex(regexPatternBuilder.ToString());
                 Match match = regex.Match(netstatResult);
                 if (match.Success)
                 {
