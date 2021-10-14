@@ -91,7 +91,7 @@ namespace FieldBotNG
                     }
 
                     ReverseSSHTunnel tempTunnel = new ReverseSSHTunnel(hostsInfo.RemoteHost, hostsInfo.LocalHost);
-                    TunnelDestroyResponse tunnelConnectionState = await tempTunnel.CheckAndKillOldProcesses();
+                    TunnelDestroyResponse tunnelConnectionState = await tempTunnel.CheckAndKillOldProcesses(false);
                     Console.WriteLine($"{DateTime.Now} -> Current tunnel state is: {tunnelConnectionState.TunnelConnectionState}");
 
                     if (!string.IsNullOrWhiteSpace(tunnelConnectionState.ExceptionMessage))
@@ -487,9 +487,10 @@ namespace FieldBotNG
                 {
                     if (_connectionsStateCounters[lastConnetcionState] > 0)
                     {
-                        _connectionsStateCounters[lastConnetcionState]--;
                         _connectionsStateCounters[currentConnectionState]++;
                     }
+
+                    _connectionsStateCounters[lastConnetcionState]--;
                 }
 
                 return currentConnectionState;

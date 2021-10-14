@@ -274,9 +274,12 @@ namespace TunnelingTools
         /// Finds old processes used by last command and kill them
         /// </summary>
         /// <returns>Current tunnel connection type</returns>
-        public async Task<TunnelDestroyResponse> CheckAndKillOldProcesses()
+        public async Task<TunnelDestroyResponse> CheckAndKillOldProcesses(bool saveCurrentState = true)
         {
-            PreviousTunnelConnectionState = LastTunnelConnectionState;
+            if (saveCurrentState)
+            {
+                PreviousTunnelConnectionState = LastTunnelConnectionState;
+            }
 
             try
             {
