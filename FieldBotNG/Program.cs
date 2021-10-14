@@ -301,7 +301,7 @@ namespace FieldBotNG
                 }
                 else
                 {
-                    await message.Channel.SendMessageAsync("Wystąpił **problem** z utworzeniem połączenia zdalnego!");
+                    await message.Channel.SendMessageAsync("Wystąpił **problem** z utworzeniem połączenia zdalnego (może być to wina ustawień firewalla lub __chwilowy problem__)!");
                 }
             }
         }

@@ -156,15 +156,25 @@ namespace TunnelingTools
             _SSHProcess.StandardOutputStringReceived += _SSHProcess_StandardOutputStringReceived;
             _SSHProcess.StandardErrorStringReceived += _SSHProcess_StandardOutputStringReceived;
 
-            IsTunnelEstablished = _SSHProcess.RunNewProcess(true, true, true);
+            IsTunnelEstablished = _SSHProcess.RunNewProcess(true, true, true);  // Here (only this line!) "IsTunnelEstablished" means "process has been created, please check tunnel connection state"
 
             if (IsTunnelEstablished)
             {
-                TunnelConnectionState currentConnectionState = await CheckAndUpdateConnectionType();
+                await CheckAndUpdateConnectionType();    // Inside property "IsTunnelEstablished" could be changed to false if something goes wrong
             }
-            else
+
+            if (IsTunnelEstablished == false)
             {
-                LastTunnelConnectionState = TunnelConnectionState.Failed;
+                // Verify again after delay 
+                await Task.Delay(1000);
+                TunnelConnectionState tunnelConnectionState = await CheckAndUpdateConnectionType();
+
+                // And if tunnel isn't still established, kill the process!
+                if (tunnelConnectionState == TunnelConnectionState.Unknown || !IsTunnelEstablished)
+                {
+                    LastTunnelConnectionState = TunnelConnectionState.Failed;
+                    await Stop();
+                }
             }
 
             return IsTunnelEstablished;
