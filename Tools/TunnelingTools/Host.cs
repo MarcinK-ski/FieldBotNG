@@ -1,9 +1,9 @@
-﻿namespace TunnelingTools.Settings
+﻿namespace TunnelingTools
 {
     /// <summary>
-    /// Settings of created tunnel
+    /// Class with host fields
     /// </summary>
-    public class TunnelSettings
+    public class Host
     {
         /// <summary>
         /// IP or Hostname
@@ -14,21 +14,6 @@
         /// Host port
         /// </summary>
         public int Port { get; set; }
-
-        /// <summary>
-        /// If it's local device, User and Password are useless
-        /// </summary>
-        public bool IsLocalDevice { get; set; }
-
-        /// <summary>
-        /// Host user
-        /// </summary>
-        public string User { get; set; }
-
-        /// <summary>
-        /// Host password
-        /// </summary>
-        public string Password { get; set; }
 
         /// <summary>
         /// Gets address IP and port number

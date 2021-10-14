@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
-using TunnelingTools.Settings;
+using TunnelingTools;
 
 namespace ReverseSSHTunnelExample
 {
@@ -35,5 +35,37 @@ namespace ReverseSSHTunnelExample
                 return _appConfig;
             }
         }
+    }
+
+    /// <summary>
+    /// Application settings root class
+    /// </summary>
+    public class ApplicationSettings
+    {
+        /// <summary>
+        /// Is BashTools works on WSL or native LinuxOS
+        /// </summary>
+        public bool WSL { get; set; }
+
+        /// <summary>
+        /// Avaliable hosts
+        /// </summary>
+        public EndToEndHosts[] Hosts { get; set; }
+    }
+
+    /// <summary>
+    /// Class with details for: in-LAN-host and remote host
+    /// </summary>
+    public class EndToEndHosts
+    {
+        /// <summary>
+        /// Remote host details
+        /// </summary>
+        public RemoteHost RemoteHost { get; set; }
+
+        /// <summary>
+        /// Local side host details
+        /// </summary>
+        public LocalHost LocalHost { get; set; }
     }
 }

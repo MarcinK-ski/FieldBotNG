@@ -2,9 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-using TunnelingTools.Settings;
 
 namespace TunnelingTools
 {
@@ -43,13 +41,13 @@ namespace TunnelingTools
         /// </summary>
         public bool IsHostChanged { get; private set; }
 
-        private TunnelSettings _remoteHost;
+        private RemoteHost _remoteHost;
         /// <summary>
         /// Gets or sets Remote Host.
         /// Pay atention! It can't be changed, while tunnel is established!
         /// </summary>
         /// <exception cref="TunnelEstablishedException">Throws, when tunnel in this object is established</exception>
-        public TunnelSettings RemoteHost 
+        public RemoteHost RemoteHost 
         {
             get
             {
@@ -69,13 +67,13 @@ namespace TunnelingTools
             }
         }
 
-        private TunnelSettings _localSideHost;
+        private LocalHost _localSideHost;
         /// <summary>
         /// Gets or sets Local Side Host.
         /// Pay atention! It can't be changed, while tunnel is established!
         /// </summary>
         /// <exception cref="TunnelEstablishedException">Throws, when tunnel in this object is established</exception>
-        public TunnelSettings LocalSideHost
+        public LocalHost LocalSideHost
         {
             get
             {
@@ -101,11 +99,27 @@ namespace TunnelingTools
         public bool IsTunnelEstablished { get; private set; }
 
         /// <summary>
+        /// Previous (one before last) connection state for this instance
+        /// </summary>
+        /// <remarks>
+        /// To update state, use CheckConnectionType() method
+        /// </remarks>
+        public TunnelConnectionState PreviousTunnelConnectionState { get; protected set; }
+
+        /// <summary>
+        /// Last connection state for this instance
+        /// </summary>
+        /// <remarks>
+        /// To update state, use CheckConnectionType() method
+        /// </remarks>
+        public TunnelConnectionState LastTunnelConnectionState { get; protected set; }
+
+        /// <summary>
         /// Creates new ReverseSSHTunnel object
         /// </summary>
         /// <param name="remoteHost">Remote host - visible in internet by IP</param>
         /// <param name="localSideHost">Local side host - visible or invisible in internet by IP</param>
-        public ReverseSSHTunnel(TunnelSettings remoteHost, TunnelSettings localSideHost)
+        public ReverseSSHTunnel(RemoteHost remoteHost, LocalHost localSideHost)
         {
             _remoteHost = remoteHost;
             _localSideHost = localSideHost;
@@ -124,8 +138,10 @@ namespace TunnelingTools
         /// Specifying a remote bind_address will only succeed if the server's GatewayPorts option is enabled.
         /// </param>
         /// <returns></returns>
-        public bool Start(string bindAddress = DEFAULT_BIND_ADDRESS)
+        public async Task<bool> Start(string bindAddress = DEFAULT_BIND_ADDRESS)
         {
+            PreviousTunnelConnectionState = LastTunnelConnectionState;
+
             if (bindAddress == DEFAULT_BIND_ADDRESS && !IsHostChanged)
             {
                 LastStartedCommandSSH = DefaultSSHCommand;
@@ -141,6 +157,16 @@ namespace TunnelingTools
             _SSHProcess.StandardErrorStringReceived += _SSHProcess_StandardOutputStringReceived;
 
             IsTunnelEstablished = _SSHProcess.RunNewProcess(true, true, true);
+
+            if (IsTunnelEstablished)
+            {
+                TunnelConnectionState currentConnectionState = await CheckAndUpdateConnectionType();
+            }
+            else
+            {
+                LastTunnelConnectionState = TunnelConnectionState.Failed;
+            }
+
             return IsTunnelEstablished;
         }
 
@@ -215,7 +241,7 @@ namespace TunnelingTools
         /// <returns>Connection state of tunnel and string with error message if occured (null if no error).</returns>
         /// <exception cref="BashProcessNotInintializedException">Throws when tunneling proces wasn't initialized</exception>
         /// <exception cref="BashProcessNotRunningException">Throws when tunneling proces is not running</exception>
-        public async Task<(TunnelConnectionState, string)> Stop()
+        public async Task<TunnelDestroyResponse> Stop()
         {
             if (_SSHProcess == null)
             {
@@ -237,11 +263,13 @@ namespace TunnelingTools
         /// Finds old processes used by last command and kill them
         /// </summary>
         /// <returns>Current tunnel connection type</returns>
-        public async Task<(TunnelConnectionState, string)> CheckAndKillOldProcesses()
+        public async Task<TunnelDestroyResponse> CheckAndKillOldProcesses()
         {
+            PreviousTunnelConnectionState = LastTunnelConnectionState;
+
             try
             {
-                if (await CheckConnectionType() != TunnelConnectionState.NoConnection)
+                if (await CheckAndUpdateConnectionType() != TunnelConnectionState.NoConnection)
                 {
                     List<int> PIDs = BashProcess.FindPIDs(LastStartedCommandSSH ?? DefaultSSHCommand);
                     foreach (int pid in PIDs)
@@ -250,11 +278,14 @@ namespace TunnelingTools
                     }
                 }
 
-                return (await CheckConnectionType(), null);
+                TunnelConnectionState connectionState = await CheckAndUpdateConnectionType();
+
+                return new TunnelDestroyResponse(connectionState);
             }
             catch (TunnelEstablishedException ex)
             {
-                return (TunnelConnectionState.StoppedWithoutChecking, ex.Message);
+                LastTunnelConnectionState = TunnelConnectionState.StoppedWithoutChecking;
+                return new TunnelDestroyResponse(LastTunnelConnectionState, ex.Message);
             }
         }
 
@@ -265,8 +296,10 @@ namespace TunnelingTools
         /// <returns>Tunnel connection state or throws TunnelUnknownConnectionStateException when netstat has no result.</returns>
         /// <exception cref="TunnelUnknownConnectionStateException">When netstat on remote device (command executed via SSH) returns null/whitespace (no netstatResult) 
         /// or when regexp match for netstat result, finds other address (than `0.0.0.0`/`127.0.0.1`) using tunnel's port.</exception>
-        public async Task<TunnelConnectionState> CheckConnectionType()
+        public async Task<TunnelConnectionState> CheckAndUpdateConnectionType()
         {
+            PreviousTunnelConnectionState = LastTunnelConnectionState;
+
             string netstatLocalAddress = null;
 
             BashProcess netstatProcess = new BashProcess($"ssh {RemoteHost.User}@{RemoteHost.IP} netstat -tlnp")
@@ -289,16 +322,22 @@ namespace TunnelingTools
                 {
                     case "0.0.0.0":
                         IsTunnelEstablished = true;
-                        return TunnelConnectionState.RemoteConnection;
+                        LastTunnelConnectionState = TunnelConnectionState.RemoteConnection;
+                        break;
                     case "127.0.0.1":
                         IsTunnelEstablished = true;
-                        return TunnelConnectionState.LocalConnection;
+                        LastTunnelConnectionState = TunnelConnectionState.LocalConnection;
+                        break;
                     case null:  // No match for regexp pattern - it means, no connection established
                         IsTunnelEstablished = false;
-                        return TunnelConnectionState.NoConnection;
+                        LastTunnelConnectionState = TunnelConnectionState.NoConnection;
+                        break;
                     default:
+                        LastTunnelConnectionState = TunnelConnectionState.Unknown;
                         throw new TunnelUnknownConnectionStateException($"Unknown Tunnel Connection State: {netstatLocalAddress}");
                 }
+
+                return LastTunnelConnectionState;
             }
 
             throw new TunnelUnknownConnectionStateException("Unknown Tunnel Connection State: no netstatResult");

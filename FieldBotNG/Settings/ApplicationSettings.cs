@@ -1,13 +1,65 @@
-﻿namespace FieldBotNG.Settings
+﻿using System.Collections.Generic;
+using TunnelingTools;
+
+namespace FieldBotNG.Settings
 {
     /// <summary>
     /// Application settings root class
     /// </summary>
-    public class ApplicationSettings : TunnelingTools.Settings.ApplicationSettings
+    public class ApplicationSettings
     {
         /// <summary>
         /// Discord bot details
         /// </summary>
         public DiscordBotSettings DiscordBot { get; set; }
+
+        /// <summary>
+        /// Discord user's ID, who has access to every connection
+        /// </summary>
+        public ulong AdminUID { get; set; }
+
+        /// <summary>
+        /// Avaliable hosts
+        /// </summary>
+        public EndToEndHosts[] Hosts { get; set; }
+
+        /// <summary>
+        /// Is BashTools works on WSL or native LinuxOS
+        /// </summary>
+        public bool WSL { get; set; }
+    }
+
+    /// <summary>
+    /// Class with details for: in-LAN-host and remote host
+    /// </summary>
+    public class EndToEndHosts
+    {
+        /// <summary>
+        /// Custom name for this hosts pair
+        /// </summary>
+        public string CustomName { get; set; }
+
+        /// <summary>
+        /// Is this hosts pair set as default
+        /// </summary>
+        /// <remarks>
+        /// Used in command service (to simplify creating connection)
+        /// </remarks>
+        public bool IsDefault { get; set; }
+
+        /// <summary>
+        /// List of allowed discord users (as IDs)
+        /// </summary>
+        public List<ulong> AllowedUsers { get; set; }
+
+        /// <summary>
+        /// Remote host details
+        /// </summary>
+        public RemoteHost RemoteHost { get; set; }
+
+        /// <summary>
+        /// Local side host details
+        /// </summary>
+        public LocalHost LocalHost { get; set; }
     }
 }
