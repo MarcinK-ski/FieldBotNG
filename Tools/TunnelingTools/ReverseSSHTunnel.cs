@@ -274,22 +274,19 @@ namespace TunnelingTools
         /// Finds old processes used by last command and kill them
         /// </summary>
         /// <returns>Current tunnel connection type</returns>
-        public async Task<TunnelDestroyResponse> CheckAndKillOldProcesses(bool saveCurrentState = true)
+        public async Task<TunnelDestroyResponse> CheckAndKillOldProcesses()
         {
-            if (saveCurrentState)
-            {
-                PreviousTunnelConnectionState = LastTunnelConnectionState;
-            }
-
             try
             {
-                if (await CheckAndUpdateConnectionType() != TunnelConnectionState.NoConnection)
+                if (await CheckAndUpdateConnectionType(false) != TunnelConnectionState.NoConnection)
                 {
                     List<int> PIDs = BashProcess.FindPIDs(LastStartedCommandSSH ?? DefaultSSHCommand);
                     foreach (int pid in PIDs)
                     {
                         BashProcess.KillProcess(pid);
                     }
+
+                    await Task.Delay(250);  // Delay to be sure, every connection on server side has been destroyed
                 }
 
                 TunnelConnectionState connectionState = await CheckAndUpdateConnectionType();
@@ -310,9 +307,12 @@ namespace TunnelingTools
         /// <returns>Tunnel connection state or throws TunnelUnknownConnectionStateException when netstat has no result.</returns>
         /// <exception cref="TunnelUnknownConnectionStateException">When netstat on remote device (command executed via SSH) returns null/whitespace (no netstatResult) 
         /// or when regexp match for netstat result, finds other address (than `0.0.0.0`/`127.0.0.1`) using tunnel's port.</exception>
-        public async Task<TunnelConnectionState> CheckAndUpdateConnectionType()
+        public async Task<TunnelConnectionState> CheckAndUpdateConnectionType(bool saveCurrentStateAsPrevious = true)
         {
-            PreviousTunnelConnectionState = LastTunnelConnectionState;
+            if (saveCurrentStateAsPrevious)
+            {
+                PreviousTunnelConnectionState = LastTunnelConnectionState;
+            }
 
             string netstatLocalAddress = null;
 
