@@ -84,6 +84,10 @@ namespace FieldBotNG
                     {
                         _defeultDeviceIndex = i;
                     }
+                    else if (hostsInfo.IsDefault)   // Case when "isDefault" is true for more than one host
+                    {
+                        hostsInfo.IsDefault = false;
+                    }
 
                     ReverseSSHTunnel tempTunnel = new ReverseSSHTunnel(hostsInfo.RemoteHost, hostsInfo.LocalHost);
                     TunnelDestroyResponse tunnelConnectionState = await tempTunnel.CheckAndKillOldProcesses();
@@ -98,7 +102,7 @@ namespace FieldBotNG
                     _connectionsStateCounters[tunnelConnectionState.TunnelConnectionState]++;
                 }
 
-                if (_defeultDeviceIndex == -1)
+                if (_defeultDeviceIndex == -1)  // If there is no default host defined in config
                 {
                     _defeultDeviceIndex = 0;
                 }
@@ -107,12 +111,12 @@ namespace FieldBotNG
 
             _client = new DiscordSocketClient();
 
-            _client.Log += Log;
+            _client.Log += WatchDog;
             _client.MessageReceived += MessageReceived;
 
             await _client.LoginAsync(TokenType.Bot, SettingsManager.AppConfig.DiscordBot.Token);
             await _client.StartAsync();
-            await UpdateCurrentActivity();
+            await _client.SetActivityAsync(new Game("Just started...", ActivityType.Watching));
 
             await Task.Delay(-1);
         }
@@ -168,9 +172,11 @@ namespace FieldBotNG
         private static async Task HandleMessage(SocketMessage message)
         {
             string content = message.Content.Trim().ToLower();
+            bool ignoreCheckingConnectionInActivityUpdate = false;
 
             if (content.IsCommandMatchPattern(Commands.HELP, false)) // Help
             {
+                ignoreCheckingConnectionInActivityUpdate = true;
                 StringBuilder helpContent = new StringBuilder();
 
                 helpContent.Append($"Każda komenda musi zaczynać się znakiem: `{Commands.PREFIX}`");
@@ -202,17 +208,19 @@ namespace FieldBotNG
             else if (content.IsCommandMatchPattern(Commands.ALL_ACTIVE_CONNECTIONS, false)) // Display all active connections
             {
                 await ExecuteGetAllDevices(true, message);
+                ignoreCheckingConnectionInActivityUpdate = true;
             }
             else if (content.IsCommandMatchPattern(Commands.ALL_AVALIABLE_CONNECTIONS, false))  // Display all avaliable devices
             {
                 await ExecuteGetAllDevices(false, message);
+                ignoreCheckingConnectionInActivityUpdate = true;
             }
             else
             {
                 await ExecuteDigitSuffixedCommand(content, message);
             }
 
-            await UpdateCurrentActivity();
+            await UpdateCurrentActivity(!ignoreCheckingConnectionInActivityUpdate);
         }
 
         private static async Task ExecuteDigitSuffixedCommand(string command, SocketMessage message)
@@ -356,7 +364,7 @@ namespace FieldBotNG
             {
                 await message.Channel.SendMessageAsync("Sprawdzanie statusu połączenia...");
 
-                TunnelConnectionState? tunnelConnectionState = await CheckConnection(_defeultDeviceIndex);
+                TunnelConnectionState? tunnelConnectionState = await CheckConnection(index);
                 await message.Channel.SendMessageAsync($"Aktualny status połączenia, to: *{tunnelConnectionState}*");
             }
         }
@@ -384,8 +392,8 @@ namespace FieldBotNG
                 EndToEndHosts currentTunnelInfo = _hostsInfo[i];
 
                 if ( ! getOnlyWithActiveConnections 
-                    || tunnel.LastTunnelConnectionState == TunnelConnectionState.LocalConnection
-                    || tunnel.LastTunnelConnectionState == TunnelConnectionState.RemoteConnection)
+                    || tunnel.PreviousTunnelConnectionState == TunnelConnectionState.LocalConnection
+                    || tunnel.PreviousTunnelConnectionState == TunnelConnectionState.RemoteConnection)
                 {
                     isThereAnyConnectionOnList = true;
                     messageToSend.Append($"\n    - [{i}] ");
@@ -394,7 +402,7 @@ namespace FieldBotNG
                     {
                         messageToSend.Append($"**{currentTunnelInfo.CustomName}**:");
                         messageToSend.Append($"\n        + `{tunnel.LocalSideHost.GetPortAndIP()}` -> `{tunnel.RemoteHost.GetPortAndIP()}`");
-                        messageToSend.Append($"\n        + Ostatni znany stan: `{tunnel.LastTunnelConnectionState}`");
+                        messageToSend.Append($"\n        + Ostatni znany stan: `{tunnel.PreviousTunnelConnectionState}`");
                     }
                     else
                     {
@@ -442,6 +450,8 @@ namespace FieldBotNG
 
         private static async Task CheckAndUpdateAllConnectionsState()
         {
+            await _client.SetGameAsync("Updating states...");
+
             for (int i = 0; i < _tunnels.Count; i++)
             {
                 await CheckConnection(i);
@@ -454,16 +464,11 @@ namespace FieldBotNG
         /// <returns></returns>
         private static async Task<TunnelConnectionState?> CheckConnection(int index)
         {
-            if (index < 0)
-            {
-                index = _defeultDeviceIndex;
-            }
-
             try
             {
                 ReverseSSHTunnel tunnel = _tunnels[index];
 
-                TunnelConnectionState lastConnetcionState = tunnel.LastTunnelConnectionState;
+                TunnelConnectionState lastConnetcionState = tunnel.PreviousTunnelConnectionState;
                 TunnelConnectionState currentConnectionState = await tunnel.CheckAndUpdateConnectionType();
 
                 if (currentConnectionState != lastConnetcionState)
@@ -471,9 +476,8 @@ namespace FieldBotNG
                     if (_connectionsStateCounters[lastConnetcionState] > 0)
                     {
                         _connectionsStateCounters[lastConnetcionState]--;
+                        _connectionsStateCounters[currentConnectionState]++;
                     }
-
-                    _connectionsStateCounters[currentConnectionState]++;
                 }
 
                 return currentConnectionState;
@@ -492,53 +496,49 @@ namespace FieldBotNG
         /// <remarks>
         /// Activity will contain "NoConnection" when any tunnel is opened. Other states will be listed with counter of them.
         /// </remarks>
-        private static async Task UpdateCurrentActivity()
+        private static async Task UpdateCurrentActivity(bool withCheckingConnectionStates)
         {
             Game game;
 
-            if (_connectionsStateCounters?.Count == 0)
+            if (_connectionsStateCounters?.Count == 0 || _tunnels?.Count == 0)
             {
-                game = new Game("Błąd konfiguracji! Brak hostów E2E!", ActivityType.CustomStatus);
+                game = new Game("Błąd konfiguracji! Brak hostów E2E!", ActivityType.Watching);
             }
             else
             {
-                TunnelConnectionState tunnelConnectionState = _tunnels[_defeultDeviceIndex].LastTunnelConnectionState;
-
-                switch (tunnelConnectionState)
+                if (withCheckingConnectionStates)
                 {
-                    case TunnelConnectionState.RemoteConnection:
-                    case TunnelConnectionState.LocalConnection:
-                        game = new Game($"{tunnelConnectionState} in {_tunnels[_defeultDeviceIndex].RemoteHost.GetPortAndIP()}", ActivityType.Playing);
-                        break;
-                    case TunnelConnectionState.NoConnection:
-                    case TunnelConnectionState.StoppedWithoutChecking:
-                        game = new Game(tunnelConnectionState.ToString(), ActivityType.Listening);
-                        break;
-                    default:
-                        game = null;
-                        break;
+                    await CheckAndUpdateAllConnectionsState();
+                    await Task.Delay(500);      // It seems to prevent "activity won't change"
                 }
 
-                // todo: use field: _connectionsStateCounters -> stringi mają być typu "X połączeń typu Remote, X połączeń typu local", a jeśli nie ma żadnego, to po prostu jedno NoConnection
-                /*foreach (var tunnel in _tunnels)
-                {
-                    TunnelConnectionState tunnelConnectionState = tunnel.LastTunnelConnectionState;
+                int countNotNull = _connectionsStateCounters.Count(conn => conn.Key != TunnelConnectionState.Unknown && conn.Value > 0);
+                int countConnections = _connectionsStateCounters[TunnelConnectionState.LocalConnection] + _connectionsStateCounters[TunnelConnectionState.RemoteConnection];
 
-                    switch (tunnelConnectionState)
+                if (countNotNull == 0)
+                {
+                    game = null;
+                }
+                else
+                {
+                    ActivityType activityType;
+                    string activityText;
+
+                    if (countConnections > 0)
                     {
-                        case TunnelConnectionState.RemoteConnection:
-                        case TunnelConnectionState.LocalConnection:
-                            game = new Game($"{tunnelConnectionState} in {tunnel.RemoteHost.GetPortAndIP()}", ActivityType.Playing);
-                            break;
-                        case TunnelConnectionState.NoConnection:
-                        case TunnelConnectionState.StoppedWithoutChecking:
-                            game = new Game(tunnelConnectionState.ToString(), ActivityType.Listening);
-                            break;
-                        default:
-                            game = null;
-                            break;
-                    } 
-                }*/
+                        int countLocal = _connectionsStateCounters[TunnelConnectionState.LocalConnection];
+                        int countRemote = _connectionsStateCounters[TunnelConnectionState.RemoteConnection];
+                        activityType = ActivityType.Playing;
+                        activityText = $"Połączono. Liczba połączeń to: {countConnections} ({countRemote} {TunnelConnectionState.RemoteConnection} oraz {countLocal} {TunnelConnectionState.LocalConnection})";
+                    }
+                    else
+                    {
+                        activityType = ActivityType.Listening;
+                        activityText = TunnelConnectionState.NoConnection.ToString();
+                    }
+
+                    game = new Game(activityText.ToString(), activityType);
+                }
             }
 
             await _client.SetActivityAsync(game);
@@ -549,7 +549,7 @@ namespace FieldBotNG
         /// </summary>
         /// <param name="logMessage">Log message</param>
         /// <returns></returns>
-        private static Task Log(LogMessage logMessage)
+        private static Task WatchDog(LogMessage logMessage)
         {
             Console.WriteLine($"{DateTime.Now.Date} - {logMessage}");
             
@@ -570,6 +570,7 @@ namespace FieldBotNG
                     else
                     {
                         Console.WriteLine($"{DateTime.Now} -> OK! Bot is still working.");
+                        await UpdateCurrentActivity(true);
                     }
                 });
             }
