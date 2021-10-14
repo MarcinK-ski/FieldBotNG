@@ -15,6 +15,8 @@ namespace FieldBotNG.Templates
         public const string ALL_ACTIVE_CONNECTIONS = "w";
         public const string ALL_AVALIABLE_CONNECTIONS = "u";
 
+        public const string KILL_YOURSELF = "^kys";
+
         public static bool IsCommandMatchPattern(this string receivedMessage, string command, bool isDigitSuffix)
         {
             return IsCommandMatchPattern(receivedMessage, command, isDigitSuffix, out int? _);

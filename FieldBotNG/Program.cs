@@ -151,7 +151,7 @@ namespace FieldBotNG
         /// <returns></returns>
         private static async Task MessageReceived(SocketMessage message)
         {
-            if (message.Content.StartsWith(Commands.PREFIX))
+            if (message.Content.StartsWith(Commands.PREFIX) || message.Content == Commands.KILL_YOURSELF)
             {
                 if (_defeultDeviceIndex == -1)
                 {
@@ -215,9 +215,18 @@ namespace FieldBotNG
                 await ExecuteGetAllDevices(false, message);
                 ignoreCheckingConnectionInActivityUpdate = true;
             }
-            else
+            else if (content != Commands.KILL_YOURSELF)
             {
                 await ExecuteDigitSuffixedCommand(content, message);
+            }
+            else
+            {
+                if (message.Author.Id == _adminUID)
+                {
+                    Process.GetCurrentProcess().Kill();
+                }
+
+                return;
             }
 
             await UpdateCurrentActivity(!ignoreCheckingConnectionInActivityUpdate);
